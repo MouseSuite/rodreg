@@ -1,5 +1,4 @@
-#||AUM||
-#||Shree Ganeshaya Namaha||
+
 import nilearn as nl
 import os
 import nilearn.image as ni
