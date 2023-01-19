@@ -6,21 +6,34 @@ from nilearn.image.image import load_img
 from nilearn.plotting import plot_anat, plot_img
 import matplotlib.pyplot as plt
 import nibabel as nb
+import numpy as np
+from nilearn.image.resampling import reorder_img
 
-from glob import glob 
+from glob import glob
 
-subdir_corr = '/ImagePTE1/ajoshi/mouse_ucla_data/EAE28_cp/Bias_Corrected'
-subdir = '/ImagePTE1/ajoshi/mouse_ucla_data/EAE28_cp/Uncorrected'
-outdir = '/ImagePTE1/ajoshi/mouse_ucla_data/data4ML'
+subdir_corr = '/deneb_disk/RodentTools/data/EAE/EAE28_biascor'
+subdir = '/deneb_disk/RodentTools/data/EAE/Uncorrected'
+mask_dir = '/deneb_disk/RodentTools/data/EAE/EAE28_masks'
+
+outdir = '/deneb_disk/RodentTools/data/EAE/data_nii'
 
 flist = [os.path.basename(x) for x in glob(subdir + '/*.img')]
+# Usage: fslchfiletype[_exe] <filetype> <filename> [filename2]
 
 for s in flist:
     subid = s[:-4]
-    subfile = os.path.join(subdir, subid + '.img')
-    img = nb.load(subfile)
-    nb.save(img,os.path.join(outdir,subid[1:] + '_uncorr.nii.gz'))
 
-    subfile_corr = os.path.join(subdir_corr,'m'+subid + '.hdr')
-    img = ni.swap_img_hemispheres(subfile_corr)
-    img.to_filename(os.path.join(outdir,subid[1:] + '_corr.nii.gz'))
+    subfile_corr = os.path.join(subdir_corr, 'm'+subid + '.hdr')
+    img_corr = ni.swap_img_hemispheres(subfile_corr)
+    img_corr.to_filename(os.path.join(outdir, subid + '_corr.nii.gz'))
+
+    subfile = os.path.join(subdir, subid + '.img')
+    img_src = nb.load(subfile)
+    img_src = ni.new_img_like(img_corr, img_src.get_fdata())
+    nb.save(img_src, os.path.join(outdir, subid + '_uncorr.nii.gz'))
+
+    mask = os.path.join(mask_dir, subid + '.mask.hdr')
+    img_msk = nb.load(mask)
+    img_msk = ni.new_img_like(img_corr, np.uint8(img_msk.get_fdata()))
+    nb.save(img_msk, os.path.join(outdir, subid + '.mask.nii.gz'))
+
