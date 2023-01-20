@@ -7,11 +7,11 @@ from monai.apps import MedNISTDataset
 from monai.networks.nets import unet
 import numpy as np
 import torch
-from torch.nn import MSELoss, CrossEntropyLoss
+from torch.nn import MSELoss
 from monai.transforms import LoadImage, Resize, EnsureChannelFirst, ScaleIntensityRangePercentiles
 from monai.data.nifti_writer import write_nifti
 from monai.losses.ssim_loss import SSIMLoss
-from monai.losses import GlobalMutualInformationLoss
+from monai.losses import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 device = 'cuda'
 
 set_determinism(42)
@@ -19,6 +19,7 @@ set_determinism(42)
 moving_file = '/deneb_disk/RodentTools/data/EAE/data_nii/M2_LCRP.bfc.nii.gz'
 target_file = '/deneb_disk/RodentTools/data/EAE/data_nii/F2_BC.bfc.nii.gz'
 output_file = 'registered.nii.gz'
+image_loss = GlobalMutualInformationLoss() #LocalNormalizedCrossCorrelationLoss() #MSELoss() #
 
 
 moving, moving_meta = LoadImage()(moving_file)
@@ -52,11 +53,10 @@ else:
 
 reg.train()
 
-image_loss = MSELoss()
 
 optimizerR = torch.optim.Adam(reg.parameters(), lr=1e-6)
 
-max_epochs = 50
+max_epochs = 200
 for epoch in range(max_epochs):
 
     optimizerR.zero_grad()
@@ -68,7 +68,8 @@ for epoch in range(max_epochs):
 
     #range = target[0].max().unsqueeze(0)
 
-    vol_loss = image_loss(image_moved[0, 0], target[0])
+    #vol_loss = image_loss(image_moved[0, 0], target[0])
+    vol_loss = image_loss(image_moved, target[None,])
 
     vol_loss.backward()
     optimizerR.step()
