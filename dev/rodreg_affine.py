@@ -21,6 +21,9 @@ target_file = 'targeto.nii.gz' #'/deneb_disk/RodentTools/data/EAE/data_nii/F2_BC
 output_file = 'registered.nii.gz'
 image_loss = LocalNormalizedCrossCorrelationLoss() #MSELoss() #GlobalMutualInformationLoss() #
 nn_input_size = 64
+max_epochs = 5000
+
+
 
 moving, moving_meta = LoadImage()(moving_file)
 target, moving_meta = LoadImage()(target_file)
@@ -57,7 +60,6 @@ reg.train()
 
 optimizerR = torch.optim.Adam(reg.parameters(), lr=1e-6)
 
-max_epochs = 5000
 for epoch in range(max_epochs):
 
     optimizerR.zero_grad()
