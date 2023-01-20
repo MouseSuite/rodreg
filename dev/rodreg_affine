@@ -19,13 +19,16 @@ set_determinism(42)
 moving_file = '/deneb_disk/RodentTools/data/EAE/data_nii/M2_LCRP.bfc.nii.gz'
 target_file = '/deneb_disk/RodentTools/data/EAE/data_nii/F2_BC.bfc.nii.gz'
 output_file = 'registered.nii.gz'
-image_loss = GlobalMutualInformationLoss() #LocalNormalizedCrossCorrelationLoss() #MSELoss() #
+image_loss = LocalNormalizedCrossCorrelationLoss() #MSELoss() #GlobalMutualInformationLoss() #
+nn_input_size = 64
+
+
 
 
 moving, moving_meta = LoadImage()(moving_file)
 target, moving_meta = LoadImage()(target_file)
 
-SZ = 64
+SZ = nn_input_size
 movingo = EnsureChannelFirst()(moving)
 targeto = EnsureChannelFirst()(target)
 size_orig = movingo[0].shape
@@ -72,11 +75,6 @@ for epoch in range(max_epochs):
     optimizerR.step()
 
     print(f'epoch_loss:{vol_loss} for epoch:{epoch}')
-
-
-write_nifti(image_moved[0, 0], 'moved.nii.gz')
-write_nifti(target[0], 'target.nii.gz')
-write_nifti(moving[0], 'moving.nii.gz')
 
 
 ddfx = Resize(spatial_size=size_orig)(ddf[:, 0])*(size_orig[0]/SZ)
