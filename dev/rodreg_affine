@@ -18,23 +18,28 @@ set_determinism(42)
 
 moving_file = '/deneb_disk/RodentTools/data/EAE/data_nii/M2_LCRP.bfc.nii.gz'
 target_file = '/deneb_disk/RodentTools/data/EAE/data_nii/F2_BC.bfc.nii.gz'
+output_file = 'registered.nii.gz'
+
 
 moving, moving_meta = LoadImage()(moving_file)
 target, moving_meta = LoadImage()(target_file)
 
-moving = EnsureChannelFirst()(moving)
-target = EnsureChannelFirst()(target)
+SZ = 64
+movingo = EnsureChannelFirst()(moving)
+targeto = EnsureChannelFirst()(target)
+size_orig = movingo[0].shape
 
+moving = Resize(spatial_size=[SZ, SZ, SZ])(movingo).to(device)
+target = Resize(spatial_size=[SZ, SZ, SZ])(targeto).to(device)
 
-moving = Resize(spatial_size=[64, 64, 64])(moving).to(device)
-target = Resize(spatial_size=[64, 64, 64])(target).to(device)
-
-moving = ScaleIntensityRangePercentiles(lower=2, upper=98, b_min=0.0, b_max=10, clip=True)(moving)
-target = ScaleIntensityRangePercentiles(lower=2, upper=98, b_min=0.0, b_max=10, clip=True)(target)
+moving = ScaleIntensityRangePercentiles(
+    lower=2, upper=98, b_min=0.0, b_max=10, clip=True)(moving)
+target = ScaleIntensityRangePercentiles(
+    lower=2, upper=98, b_min=0.0, b_max=10, clip=True)(target)
 
 
 reg = GlobalNet(
-    image_size=(64, 64, 64),
+    image_size=(SZ, SZ, SZ),
     spatial_dims=3,
     in_channels=2,  # moving and fixed
     num_channel_initial=16,
@@ -44,36 +49,47 @@ if USE_COMPILED:
     warp_layer = Warp(3, "border").to(device)
 else:
     warp_layer = Warp("bilinear", "border").to(device)
-    
+
 reg.train()
 
 image_loss = MSELoss()
 
 optimizerR = torch.optim.Adam(reg.parameters(), lr=1e-6)
 
-max_epochs = 500
+max_epochs = 50
 for epoch in range(max_epochs):
 
     optimizerR.zero_grad()
 
-
     input_data = torch.cat((moving, target), dim=0)
-    input_data = input_data[None,]
+    input_data = input_data[None, ]
     ddf = reg(input_data)
-    image_moved = warp_layer(moving[None,], ddf)
-
+    image_moved = warp_layer(moving[None, ], ddf)
 
     #range = target[0].max().unsqueeze(0)
 
-    vol_loss = image_loss(image_moved[0,0], target[0])
+    vol_loss = image_loss(image_moved[0, 0], target[0])
 
     vol_loss.backward()
     optimizerR.step()
 
-    print(f'epoch_loss:{vol_loss} for epoch:{epoch}')    
+    print(f'epoch_loss:{vol_loss} for epoch:{epoch}')
 
 
+write_nifti(image_moved[0, 0], 'moved.nii.gz')
+write_nifti(target[0], 'target.nii.gz')
+write_nifti(moving[0], 'moving.nii.gz')
 
-write_nifti(image_moved[0,0],'moved.nii.gz')
-write_nifti(target[0],'target.nii.gz')
-write_nifti(moving[0],'moving.nii.gz')
+
+ddfx = Resize(spatial_size=size_orig)(ddf[:, 0])*(size_orig[0]/SZ)
+ddfy = Resize(spatial_size=size_orig)(ddf[:, 1])*(size_orig[1]/SZ)
+ddfz = Resize(spatial_size=size_orig)(ddf[:, 2])*(size_orig[2]/SZ)
+ddfo = torch.cat((ddfx, ddfy, ddfz), dim=0)
+image_movedo = warp_layer(movingo[None, ].to(device), ddfo[None, ])
+
+write_nifti(image_movedo[0, 0], 'movedo.nii.gz', affine=targeto.affine)
+write_nifti(movingo[0], 'movingo.nii.gz', affine=movingo.affine)
+write_nifti(targeto[0], 'targeto.nii.gz', affine=movingo.affine)
+
+
+write_nifti(image_movedo[0, 0], output_file, affine=targeto.affine)
