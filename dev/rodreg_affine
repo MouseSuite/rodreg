@@ -66,9 +66,6 @@ for epoch in range(max_epochs):
     ddf = reg(input_data)
     image_moved = warp_layer(moving[None, ], ddf)
 
-    #range = target[0].max().unsqueeze(0)
-
-    #vol_loss = image_loss(image_moved[0, 0], target[0])
     vol_loss = image_loss(image_moved, target[None,])
 
     vol_loss.backward()
