@@ -16,14 +16,11 @@ device = 'cuda'
 
 set_determinism(42)
 
-moving_file = '/deneb_disk/RodentTools/data/EAE/data_nii/M2_LCRP.bfc.nii.gz'
-target_file = '/deneb_disk/RodentTools/data/EAE/data_nii/F2_BC.bfc.nii.gz'
+moving_file = 'movingo_moved.nii.gz' #'/deneb_disk/RodentTools/data/EAE/data_nii/M2_LCRP.bfc.nii.gz'
+target_file = 'targeto.nii.gz' #'/deneb_disk/RodentTools/data/EAE/data_nii/F2_BC.bfc.nii.gz'
 output_file = 'registered.nii.gz'
 image_loss = LocalNormalizedCrossCorrelationLoss() #MSELoss() #GlobalMutualInformationLoss() #
 nn_input_size = 64
-
-
-
 
 moving, moving_meta = LoadImage()(moving_file)
 target, moving_meta = LoadImage()(target_file)
@@ -42,6 +39,7 @@ target = ScaleIntensityRangePercentiles(
     lower=2, upper=98, b_min=0.0, b_max=10, clip=True)(target)
 
 
+# GlobalNet is a NN with Affine head
 reg = GlobalNet(
     image_size=(SZ, SZ, SZ),
     spatial_dims=3,
@@ -59,7 +57,7 @@ reg.train()
 
 optimizerR = torch.optim.Adam(reg.parameters(), lr=1e-6)
 
-max_epochs = 200
+max_epochs = 5000
 for epoch in range(max_epochs):
 
     optimizerR.zero_grad()
@@ -81,6 +79,7 @@ ddfx = Resize(spatial_size=size_orig)(ddf[:, 0])*(size_orig[0]/SZ)
 ddfy = Resize(spatial_size=size_orig)(ddf[:, 1])*(size_orig[1]/SZ)
 ddfz = Resize(spatial_size=size_orig)(ddf[:, 2])*(size_orig[2]/SZ)
 ddfo = torch.cat((ddfx, ddfy, ddfz), dim=0)
+del ddf, ddfx, ddfy, ddfz
 image_movedo = warp_layer(movingo[None, ].to(device), ddfo[None, ])
 
 write_nifti(image_movedo[0, 0], 'movedo.nii.gz', affine=targeto.affine)
