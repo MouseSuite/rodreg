@@ -1,3 +1,79 @@
-||AUM||
-||Shree Ganeshaya Namaha||
+from monai.utils import set_determinism, first
+from monai.networks.nets import GlobalNet
+from monai.data import DataLoader, Dataset, CacheDataset
+from monai.config import print_config, USE_COMPILED
+from monai.networks.blocks import Warp
+from monai.apps import MedNISTDataset
+from monai.networks.nets import unet
+import numpy as np
+import torch
+from torch.nn import MSELoss, CrossEntropyLoss
+from monai.transforms import LoadImage, Resize, EnsureChannelFirst, ScaleIntensityRangePercentiles
+from monai.data.nifti_writer import write_nifti
+from monai.losses.ssim_loss import SSIMLoss
+from monai.losses import GlobalMutualInformationLoss
+device = 'cuda'
 
+set_determinism(42)
+
+moving_file = '/deneb_disk/RodentTools/data/EAE/data_nii/M2_LCRP.bfc.nii.gz'
+target_file = '/deneb_disk/RodentTools/data/EAE/data_nii/F2_BC.bfc.nii.gz'
+
+moving, moving_meta = LoadImage()(moving_file)
+target, moving_meta = LoadImage()(target_file)
+
+moving = EnsureChannelFirst()(moving)
+target = EnsureChannelFirst()(target)
+
+
+moving = Resize(spatial_size=[64, 64, 64])(moving).to(device)
+target = Resize(spatial_size=[64, 64, 64])(target).to(device)
+
+moving = ScaleIntensityRangePercentiles(lower=2, upper=98, b_min=0.0, b_max=10, clip=True)(moving)
+target = ScaleIntensityRangePercentiles(lower=2, upper=98, b_min=0.0, b_max=10, clip=True)(target)
+
+
+reg = GlobalNet(
+    image_size=(64, 64, 64),
+    spatial_dims=3,
+    in_channels=2,  # moving and fixed
+    num_channel_initial=16,
+    depth=4).to(device)
+
+if USE_COMPILED:
+    warp_layer = Warp(3, "border").to(device)
+else:
+    warp_layer = Warp("bilinear", "border").to(device)
+    
+reg.train()
+
+image_loss = MSELoss()
+
+optimizerR = torch.optim.Adam(reg.parameters(), lr=1e-6)
+
+max_epochs = 500
+for epoch in range(max_epochs):
+
+    optimizerR.zero_grad()
+
+
+    input_data = torch.cat((moving, target), dim=0)
+    input_data = input_data[None,]
+    ddf = reg(input_data)
+    image_moved = warp_layer(moving[None,], ddf)
+
+
+    #range = target[0].max().unsqueeze(0)
+
+    vol_loss = image_loss(image_moved[0,0], target[0])
+
+    vol_loss.backward()
+    optimizerR.step()
+
+    print(f'epoch_loss:{vol_loss} for epoch:{epoch}')    
+
+
+
+write_nifti(image_moved[0,0],'moved.nii.gz')
+write_nifti(target[0],'target.nii.gz')
+write_nifti(moving[0],'moving.nii.gz')
