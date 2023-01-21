@@ -1,30 +1,26 @@
-from monai.utils import set_determinism, first
+from monai.utils import set_determinism
 from monai.networks.nets import GlobalNet
-from monai.data import DataLoader, Dataset, CacheDataset
-from monai.config import print_config, USE_COMPILED
+from monai.config import USE_COMPILED
 from monai.networks.blocks import Warp
-from monai.apps import MedNISTDataset
-from monai.networks.nets import unet
-import numpy as np
 import torch
 from torch.nn import MSELoss
 from monai.transforms import LoadImage, Resize, EnsureChannelFirst, ScaleIntensityRangePercentiles
 from monai.data.nifti_writer import write_nifti
 from monai.losses.ssim_loss import SSIMLoss
 from monai.losses import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
-device = 'cuda'
 
 set_determinism(42)
 
-moving_file = 'movingo_moved.nii.gz' #'/deneb_disk/RodentTools/data/EAE/data_nii/M2_LCRP.bfc.nii.gz'
-target_file = 'targeto.nii.gz' #'/deneb_disk/RodentTools/data/EAE/data_nii/F2_BC.bfc.nii.gz'
-output_file = 'registered.nii.gz'
+device = 'cuda'
+moving_file = 'distorted_M2_LCRP.bfc.nii.gz' # 'M2_LCRP.bfc.nii.gz' #
+target_file = 'F2_BC.bfc.nii.gz' #'/home/ajoshi/MSA100/MSA100_bst.nii.gz'#
+output_file = 'dreg_M2_LCRP.bfc.nii.gz'
 image_loss = LocalNormalizedCrossCorrelationLoss() #MSELoss() #GlobalMutualInformationLoss() #
 nn_input_size = 64
 max_epochs = 5000
 
 
-
+#######################
 moving, moving_meta = LoadImage()(moving_file)
 target, moving_meta = LoadImage()(target_file)
 
@@ -51,9 +47,9 @@ reg = GlobalNet(
     depth=4).to(device)
 
 if USE_COMPILED:
-    warp_layer = Warp(3, "border").to(device)
+    warp_layer = Warp(3, padding_mode="zeros").to(device)
 else:
-    warp_layer = Warp("bilinear", "border").to(device)
+    warp_layer = Warp("bilinear", padding_mode="zeros").to(device)
 
 reg.train()
 
@@ -84,9 +80,7 @@ ddfo = torch.cat((ddfx, ddfy, ddfz), dim=0)
 del ddf, ddfx, ddfy, ddfz
 image_movedo = warp_layer(movingo[None, ].to(device), ddfo[None, ])
 
-write_nifti(image_movedo[0, 0], 'movedo.nii.gz', affine=targeto.affine)
-write_nifti(movingo[0], 'movingo.nii.gz', affine=movingo.affine)
-write_nifti(targeto[0], 'targeto.nii.gz', affine=movingo.affine)
-
-
 write_nifti(image_movedo[0, 0], output_file, affine=targeto.affine)
+
+#####################
+
