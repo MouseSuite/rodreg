@@ -22,8 +22,8 @@ moving_file = '/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
 target_file = 'F2_BC.bfc.nii.gz'  # '
 output_file = 'warped_atlas.bfc.nii.gz'
 
-# LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() #
-image_loss = MSELoss()
+
+image_loss = MSELoss() # LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() #
 max_epochs = 1500
 nn_input_size = 64
 
