@@ -8,16 +8,24 @@ from monai.transforms import LoadImage, Resize, EnsureChannelFirst, ScaleIntensi
 from monai.data.nifti_writer import write_nifti
 from monai.losses.ssim_loss import SSIMLoss
 from monai.losses import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
+from nilearn.image import resample_to_img, resample_img, crop_img, load_img
+from torch.nn.functional import grid_sample
+from warp_utils import get_grid
+from typing import List
+
 
 set_determinism(42)
 
 device = 'cuda'
-moving_file = 'distorted_M2_LCRP.bfc.nii.gz' # 'M2_LCRP.bfc.nii.gz' #
-target_file = 'F2_BC.bfc.nii.gz' #'/home/ajoshi/MSA100/MSA100_bst.nii.gz'#
-output_file = 'dreg_M2_LCRP.bfc.nii.gz'
-image_loss = LocalNormalizedCrossCorrelationLoss() #MSELoss() #GlobalMutualInformationLoss() #
+
+moving_file = '/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
+target_file = 'F2_BC.bfc.nii.gz'  # '
+output_file = 'warped_atlas.bfc.nii.gz'
+
+# LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() #
+image_loss = MSELoss()
+max_epochs = 1500
 nn_input_size = 64
-max_epochs = 5000
 
 
 #######################
@@ -27,15 +35,17 @@ target, moving_meta = LoadImage()(target_file)
 SZ = nn_input_size
 movingo = EnsureChannelFirst()(moving)
 targeto = EnsureChannelFirst()(target)
-size_orig = movingo[0].shape
+size_moving = movingo[0].shape
+size_target = targeto[0].shape
+
 
 moving = Resize(spatial_size=[SZ, SZ, SZ])(movingo).to(device)
 target = Resize(spatial_size=[SZ, SZ, SZ])(targeto).to(device)
 
 moving = ScaleIntensityRangePercentiles(
-    lower=2, upper=98, b_min=0.0, b_max=10, clip=True)(moving)
+    lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(moving)
 target = ScaleIntensityRangePercentiles(
-    lower=2, upper=98, b_min=0.0, b_max=10, clip=True)(target)
+    lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(target)
 
 
 # GlobalNet is a NN with Affine head
@@ -65,7 +75,7 @@ for epoch in range(max_epochs):
     ddf = reg(input_data)
     image_moved = warp_layer(moving[None, ], ddf)
 
-    vol_loss = image_loss(image_moved, target[None,])
+    vol_loss = image_loss(image_moved, target[None, ])
 
     vol_loss.backward()
     optimizerR.step()
@@ -73,14 +83,34 @@ for epoch in range(max_epochs):
     print(f'epoch_loss:{vol_loss} for epoch:{epoch}')
 
 
-ddfx = Resize(spatial_size=size_orig)(ddf[:, 0])*(size_orig[0]/SZ)
-ddfy = Resize(spatial_size=size_orig)(ddf[:, 1])*(size_orig[1]/SZ)
-ddfz = Resize(spatial_size=size_orig)(ddf[:, 2])*(size_orig[2]/SZ)
+write_nifti(moving[0], 'moving.nii.gz')
+write_nifti(target[0], 'target.nii.gz')
+write_nifti(image_moved[0, 0], 'moved.nii.gz')
+
+
+ddfx = Resize(spatial_size=size_target)(ddf[:, 0])*(size_moving[0]/SZ)
+ddfy = Resize(spatial_size=size_target)(ddf[:, 1])*(size_moving[1]/SZ)
+ddfz = Resize(spatial_size=size_target)(ddf[:, 2])*(size_moving[2]/SZ)
 ddfo = torch.cat((ddfx, ddfy, ddfz), dim=0)
 del ddf, ddfx, ddfy, ddfz
-image_movedo = warp_layer(movingo[None, ].to(device), ddfo[None, ])
+
+ref_grid = get_grid(size_moving, size_target)
+
+grid = ref_grid.to(ddfo) + ddfo[None, ]
+grid = torch.permute(grid, (0, 2, 3, 4, 1))
+
+for i, dim in enumerate(size_moving):
+    grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
+
+
+spatial_dims = 3
+index_ordering: List[int] = list(range(spatial_dims - 1, -1, -1))
+grid = grid[..., index_ordering]  # z, y, x -> x, y, z
+
+image_movedo = grid_sample(movingo[None, ].to(
+    device), grid=grid, align_corners=True)
 
 write_nifti(image_movedo[0, 0], output_file, affine=targeto.affine)
 
-#####################
 
+#####################
