@@ -19,7 +19,6 @@ device = 'cuda'
 moving_file = '/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
 target_file = 'F2_BC.bfc.nii.gz'  # '
 output_file = 'warped_atlas.bfc.nii.gz'
-output_file2 = 'warped_atlas2.bfc.nii.gz'
 
 
 # LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() # #
@@ -99,7 +98,7 @@ del ddf, ddfx, ddfy, ddfz
 
 # Apply the warp
 image_movedo = apply_warp(ddfo[None, ], movingo[None, ], targeto[None, ])
-write_nifti(image_movedo[0, 0], output_file2, affine=targeto.affine)
+write_nifti(image_movedo[0, 0], output_file, affine=targeto.affine)
 
 
 #####################
