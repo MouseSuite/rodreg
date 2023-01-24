@@ -14,22 +14,23 @@ from warp_utils import get_grid, apply_warp
 from typing import List
 
 
-set_determinism(42)
-
 device = 'cuda'
 
-moving_file = '/home/ajoshi/projects/rodreg/test_case/distorted_M2_LCRP.bfc.nii.gz' #/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
+moving_file = '/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
 target_file = 'F2_BC.bfc.nii.gz'  # '
 output_file = 'warped_atlas.bfc.nii.gz'
 output_file2 = 'warped_atlas2.bfc.nii.gz'
 
 
-image_loss = LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() #MSELoss() # 
+# LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() # #
+image_loss = MSELoss()
 max_epochs = 50
 nn_input_size = 64
 
 
 #######################
+set_determinism(42)
+
 moving, moving_meta = LoadImage()(moving_file)
 target, moving_meta = LoadImage()(target_file)
 
@@ -97,7 +98,7 @@ ddfo = torch.cat((ddfx, ddfy, ddfz), dim=0)
 del ddf, ddfx, ddfy, ddfz
 
 # Apply the warp
-image_movedo = apply_warp(ddfo[None,], movingo[None,], targeto[None,])
+image_movedo = apply_warp(ddfo[None, ], movingo[None, ], targeto[None, ])
 write_nifti(image_movedo[0, 0], output_file2, affine=targeto.affine)
 
 

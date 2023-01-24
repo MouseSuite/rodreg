@@ -25,16 +25,16 @@ from torch.nn.functional import grid_sample
 def get_grid(moving_shape, target_shape, requires_grad=False):
 
     mesh_points = [torch.arange(0, dim) for dim in target_shape]
-    ref_grid = torch.stack(meshgrid_ij(*mesh_points), dim=0)  # (spatial_dims, ...)
-    #grid = torch.stack([grid] * ddf.shape[0], dim=0)  # (batch, spatial_dims, ...)
+    ref_grid = torch.stack(meshgrid_ij(*mesh_points),
+                           dim=0)  # (spatial_dims, ...)
+    # grid = torch.stack([grid] * ddf.shape[0], dim=0)  # (batch, spatial_dims, ...)
     #ref_grid = grid.to(ddf)
     ref_grid = ref_grid.float()
     ref_grid[0] *= (moving_shape[0]/target_shape[0])
     ref_grid[1] *= (moving_shape[1]/target_shape[1])
-    ref_grid[2] *= (moving_shape[2]/target_shape[2]) 
+    ref_grid[2] *= (moving_shape[2]/target_shape[2])
     ref_grid.requires_grad = False
     return ref_grid
-
 
 
 def apply_warp(disp_field, moving_image, target_image, interp_mode='bilinear'):
@@ -50,15 +50,11 @@ def apply_warp(disp_field, moving_image, target_image, interp_mode='bilinear'):
     for i, dim in enumerate(moving_image.shape[2:]):
         grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
 
-
     spatial_dims = 3
     index_ordering: List[int] = list(range(spatial_dims - 1, -1, -1))
     grid = grid[..., index_ordering]  # z, y, x -> x, y, z
 
-    warped_image = grid_sample(moving_image.to(disp_field), grid=grid, align_corners=True, mode=interp_mode)
+    warped_image = grid_sample(moving_image.to(
+        disp_field), grid=grid, align_corners=True, mode=interp_mode)
 
     return warped_image
-
-
-
-
