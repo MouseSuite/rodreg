@@ -90,9 +90,9 @@ write_nifti(target[0], 'target.nii.gz')
 write_nifti(image_moved[0, 0], 'moved.nii.gz')
 '''
 
-ddfx = Resize(spatial_size=size_target)(ddf[:, 0])*(size_moving[0]/SZ)
-ddfy = Resize(spatial_size=size_target)(ddf[:, 1])*(size_moving[1]/SZ)
-ddfz = Resize(spatial_size=size_target)(ddf[:, 2])*(size_moving[2]/SZ)
+ddfx = Resize(spatial_size=size_target, mode='trilinear')(ddf[:, 0])*(size_moving[0]/SZ)
+ddfy = Resize(spatial_size=size_target, mode='trilinear')(ddf[:, 1])*(size_moving[1]/SZ)
+ddfz = Resize(spatial_size=size_target, mode='trilinear')(ddf[:, 2])*(size_moving[2]/SZ)
 ddfo = torch.cat((ddfx, ddfy, ddfz), dim=0)
 del ddf, ddfx, ddfy, ddfz
 
