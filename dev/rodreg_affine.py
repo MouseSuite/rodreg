@@ -23,7 +23,7 @@ output_file = 'warped_atlas.bfc.nii.gz'
 
 # LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() # #
 image_loss = MSELoss()
-max_epochs = 500
+max_epochs = 1500
 nn_input_size = 64
 
 
