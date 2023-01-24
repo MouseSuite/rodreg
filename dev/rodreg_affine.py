@@ -10,7 +10,7 @@ from monai.losses.ssim_loss import SSIMLoss
 from monai.losses import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from nilearn.image import resample_to_img, resample_img, crop_img, load_img
 from torch.nn.functional import grid_sample
-from warp_utils import get_grid
+from warp_utils import get_grid, apply_warp
 from typing import List
 
 
@@ -18,13 +18,14 @@ set_determinism(42)
 
 device = 'cuda'
 
-moving_file = '/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
+moving_file = '/home/ajoshi/projects/rodreg/test_case/distorted_M2_LCRP.bfc.nii.gz' #/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
 target_file = 'F2_BC.bfc.nii.gz'  # '
 output_file = 'warped_atlas.bfc.nii.gz'
+output_file2 = 'warped_atlas2.bfc.nii.gz'
 
 
-image_loss = MSELoss() # LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() #
-max_epochs = 1500
+image_loss = LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() #MSELoss() # 
+max_epochs = 50
 nn_input_size = 64
 
 
@@ -83,10 +84,11 @@ for epoch in range(max_epochs):
     print(f'epoch_loss:{vol_loss} for epoch:{epoch}')
 
 
+'''
 write_nifti(moving[0], 'moving.nii.gz')
 write_nifti(target[0], 'target.nii.gz')
 write_nifti(image_moved[0, 0], 'moved.nii.gz')
-
+'''
 
 ddfx = Resize(spatial_size=size_target)(ddf[:, 0])*(size_moving[0]/SZ)
 ddfy = Resize(spatial_size=size_target)(ddf[:, 1])*(size_moving[1]/SZ)
@@ -94,23 +96,9 @@ ddfz = Resize(spatial_size=size_target)(ddf[:, 2])*(size_moving[2]/SZ)
 ddfo = torch.cat((ddfx, ddfy, ddfz), dim=0)
 del ddf, ddfx, ddfy, ddfz
 
-ref_grid = get_grid(size_moving, size_target)
-
-grid = ref_grid.to(ddfo) + ddfo[None, ]
-grid = torch.permute(grid, (0, 2, 3, 4, 1))
-
-for i, dim in enumerate(size_moving):
-    grid[..., i] = grid[..., i] * 2 / (dim - 1) - 1
-
-
-spatial_dims = 3
-index_ordering: List[int] = list(range(spatial_dims - 1, -1, -1))
-grid = grid[..., index_ordering]  # z, y, x -> x, y, z
-
-image_movedo = grid_sample(movingo[None, ].to(
-    device), grid=grid, align_corners=True)
-
-write_nifti(image_movedo[0, 0], output_file, affine=targeto.affine)
+# Apply the warp
+image_movedo = apply_warp(ddfo[None,], movingo[None,], targeto[None,])
+write_nifti(image_movedo[0, 0], output_file2, affine=targeto.affine)
 
 
 #####################
