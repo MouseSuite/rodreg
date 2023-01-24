@@ -44,7 +44,7 @@ def apply_warp(disp_field, moving_image, target_image, interp_mode='bilinear'):
 
     ref_grid = get_grid(moving_image.shape[2:], target_image.shape[2:])
 
-    grid = ref_grid.to(disp_field) + disp_field
+    grid = ref_grid[None,].to(disp_field) + disp_field
     grid = torch.permute(grid, (0, 2, 3, 4, 1))
 
     for i, dim in enumerate(moving_image.shape[2:]):

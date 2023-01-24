@@ -23,7 +23,7 @@ output_file = 'warped_atlas.bfc.nii.gz'
 
 # LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() # #
 image_loss = MSELoss()
-max_epochs = 1500
+max_epochs = 5000
 nn_input_size = 64
 
 
@@ -99,6 +99,5 @@ del ddf, ddfx, ddfy, ddfz
 # Apply the warp
 image_movedo = apply_warp(ddfo[None, ], movingo[None, ], targeto[None, ])
 write_nifti(image_movedo[0, 0], output_file, affine=targeto.affine)
-
 
 #####################
