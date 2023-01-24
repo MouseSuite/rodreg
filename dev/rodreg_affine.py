@@ -19,7 +19,8 @@ device = 'cuda'
 moving_file = '/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
 target_file = 'F2_BC.bfc.nii.gz'  # '
 output_file = 'warped_atlas.bfc.nii.gz'
-
+label_file = '/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.label.nii.gz'
+output_label_file = 'warped_atlas.label.nii.gz'
 
 # LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() # #
 image_loss = MSELoss()
@@ -34,19 +35,19 @@ moving, moving_meta = LoadImage()(moving_file)
 target, moving_meta = LoadImage()(target_file)
 
 SZ = nn_input_size
-movingo = EnsureChannelFirst()(moving)
-targeto = EnsureChannelFirst()(target)
-size_moving = movingo[0].shape
-size_target = targeto[0].shape
+moving = EnsureChannelFirst()(moving)
+target = EnsureChannelFirst()(target)
+size_moving = moving[0].shape
+size_target = target[0].shape
 
 
-moving = Resize(spatial_size=[SZ, SZ, SZ])(movingo).to(device)
-target = Resize(spatial_size=[SZ, SZ, SZ])(targeto).to(device)
+moving_ds = Resize(spatial_size=[SZ, SZ, SZ])(moving).to(device)
+target_ds = Resize(spatial_size=[SZ, SZ, SZ])(target).to(device)
 
-moving = ScaleIntensityRangePercentiles(
-    lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(moving)
-target = ScaleIntensityRangePercentiles(
-    lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(target)
+moving_ds = ScaleIntensityRangePercentiles(
+    lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(moving_ds)
+target_ds = ScaleIntensityRangePercentiles(
+    lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(target_ds)
 
 
 # GlobalNet is a NN with Affine head
@@ -71,12 +72,12 @@ for epoch in range(max_epochs):
 
     optimizerR.zero_grad()
 
-    input_data = torch.cat((moving, target), dim=0)
+    input_data = torch.cat((moving_ds, target_ds), dim=0)
     input_data = input_data[None, ]
-    ddf = reg(input_data)
-    image_moved = warp_layer(moving[None, ], ddf)
+    ddf_ds = reg(input_data)
+    image_moved = warp_layer(moving_ds[None, ], ddf_ds)
 
-    vol_loss = image_loss(image_moved, target[None, ])
+    vol_loss = image_loss(image_moved, target_ds[None, ])
 
     vol_loss.backward()
     optimizerR.step()
@@ -84,20 +85,24 @@ for epoch in range(max_epochs):
     print(f'epoch_loss:{vol_loss} for epoch:{epoch}')
 
 
-'''
-write_nifti(moving[0], 'moving.nii.gz')
-write_nifti(target[0], 'target.nii.gz')
-write_nifti(image_moved[0, 0], 'moved.nii.gz')
-'''
 
-ddfx = Resize(spatial_size=size_target, mode='trilinear')(ddf[:, 0])*(size_moving[0]/SZ)
-ddfy = Resize(spatial_size=size_target, mode='trilinear')(ddf[:, 1])*(size_moving[1]/SZ)
-ddfz = Resize(spatial_size=size_target, mode='trilinear')(ddf[:, 2])*(size_moving[2]/SZ)
-ddfo = torch.cat((ddfx, ddfy, ddfz), dim=0)
-del ddf, ddfx, ddfy, ddfz
+ddfx = Resize(spatial_size=size_target, mode='trilinear')(ddf_ds[:, 0])*(size_moving[0]/SZ)
+ddfy = Resize(spatial_size=size_target, mode='trilinear')(ddf_ds[:, 1])*(size_moving[1]/SZ)
+ddfz = Resize(spatial_size=size_target, mode='trilinear')(ddf_ds[:, 2])*(size_moving[2]/SZ)
+ddf = torch.cat((ddfx, ddfy, ddfz), dim=0)
+del ddf_ds, ddfx, ddfy, ddfz
 
 # Apply the warp
-image_movedo = apply_warp(ddfo[None, ], movingo[None, ], targeto[None, ])
-write_nifti(image_movedo[0, 0], output_file, affine=targeto.affine)
+image_movedo = apply_warp(ddf[None, ], moving[None, ], target[None, ])
+write_nifti(image_movedo[0, 0], output_file, affine=target.affine)
+
+
+
+# Apply the warp to labels
+label, meta = LoadImage()(label_file)
+label = EnsureChannelFirst()(label)
+warped_labels = apply_warp(ddf[None, ], label[None,], target[None, ], interp_mode='nearest')
+write_nifti(warped_labels[0,0], output_label_file, affine=target.affine)
+
 
 #####################
