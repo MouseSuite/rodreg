@@ -24,7 +24,7 @@ output_label_file = 'warped_atlas.label.nii.gz'
 
 # LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() # #
 image_loss = MSELoss()
-max_epochs = 5000
+max_epochs = 1500
 nn_input_size = 64
 
 
@@ -55,7 +55,7 @@ reg = GlobalNet(
     image_size=(SZ, SZ, SZ),
     spatial_dims=3,
     in_channels=2,  # moving and fixed
-    num_channel_initial=16,
+    num_channel_initial=4,
     depth=4).to(device)
 
 if USE_COMPILED:
