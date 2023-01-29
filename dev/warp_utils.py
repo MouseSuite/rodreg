@@ -21,6 +21,39 @@ from monai.networks.layers.spatial_transforms import grid_pull
 from monai.networks.utils import meshgrid_ij
 from torch.nn.functional import grid_sample
 
+import numpy as np
+
+def jacobian_determinant(vf):
+    """
+    Given a displacement vector field vf, compute the jacobian determinant scalar field.
+    vf is assumed to be a vector field of shape (3,H,W,D),
+    and it is interpreted as the displacement field.
+    So it is defining a discretely sampled map from a subset of 3-space into 3-space,
+    namely the map that sends point (x,y,z) to the point (x,y,z)+vf[:,x,y,z].
+    This function computes a jacobian determinant by taking discrete differences in each spatial direction.
+    Returns a numpy array of shape (H-1,W-1,D-1).
+    """
+
+    _, H, W, D = vf.shape
+
+    # Compute discrete spatial derivatives
+    def diff_and_trim(array, axis): return np.diff(
+        array, axis=axis)[:, :(H-1), :(W-1), :(D-1)]
+    dx = diff_and_trim(vf, 1)
+    dy = diff_and_trim(vf, 2)
+    dz = diff_and_trim(vf, 3)
+
+    # Add derivative of identity map
+    dx[0] += 1
+    dy[1] += 1
+    dz[2] += 1
+
+    # Compute determinant at each spatial location
+    det = dx[0]*(dy[1]*dz[2]-dz[1]*dy[2]) - dy[0]*(dx[1]*dz[2] -
+                                                   dz[1]*dx[2]) + dz[0]*(dx[1]*dy[2]-dy[1]*dx[2])
+
+    return det
+
 
 def get_grid(moving_shape, target_shape, requires_grad=False):
 

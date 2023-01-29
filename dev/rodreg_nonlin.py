@@ -1,5 +1,5 @@
 from monai.utils import set_determinism
-from monai.networks.nets import GlobalNet
+from monai.networks.nets import GlobalNet, LocalNet, RegUNet, unet
 from monai.config import USE_COMPILED
 from monai.networks.blocks import Warp
 import torch
@@ -10,23 +10,28 @@ from monai.losses.ssim_loss import SSIMLoss
 from monai.losses import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from nilearn.image import resample_to_img, resample_img, crop_img, load_img
 from torch.nn.functional import grid_sample
-from warp_utils import get_grid, apply_warp
+from warp_utils import get_grid, apply_warp, jacobian_determinant
 from typing import List
-
+from monai.losses import BendingEnergyLoss
+from networks import LocalNet2
 
 device = 'cuda'
 
-moving_file = 'distorted_M2_LCRP.bfc.nii.gz'#'/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
+moving_file = 'warped_atlas.bfc.nii.gz'#'/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
 target_file = 'F2_BC.bfc.nii.gz'  # '
-output_file = 'warped_atlas.bfc.nii.gz'
-label_file = '/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.label.nii.gz'
-output_label_file = 'warped_atlas.label.nii.gz'
+output_file = 'nonlin_warped_atlas1e-1.bfc.nii.gz'
+label_file = 'warped_atlas.label.nii.gz'
+output_label_file = 'nonlin_warped_atlas1e-1.label.nii.gz'
 
 # LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() # #
-image_loss = LocalNormalizedCrossCorrelationLoss() #MSELoss()
+image_loss =  MSELoss()# LocalNormalizedCrossCorrelationLoss() #
+regularization = BendingEnergyLoss()
+
 max_epochs = 3000
 nn_input_size = 64
 
+reg_penalty = .3
+lr = 1e-2
 
 #######################
 set_determinism(42)
@@ -51,12 +56,31 @@ target_ds = ScaleIntensityRangePercentiles(
 
 
 # GlobalNet is a NN with Affine head
-reg = GlobalNet(
+reg2 = GlobalNet(
     image_size=(SZ, SZ, SZ),
     spatial_dims=3,
     in_channels=2,  # moving and fixed
     num_channel_initial=2,
     depth=2).to(device)
+
+
+
+reg3 = LocalNet(
+    spatial_dims=3,
+    in_channels=2,
+    out_channels=3,
+    num_channel_initial=32,
+    extract_levels=[0,1,2,3,4,5], # check this this seems incorrect
+    out_activation=None,
+    out_kernel_initializer="zeros").to(device)
+
+reg = unet.UNet(spatial_dims=3,  # spatial dims
+    in_channels=2,
+    out_channels=3,# output channels (to represent 3D displacement vector field)
+    channels=(16, 32, 32, 32, 32),  # channel sequence
+    strides=(1, 2, 2, 2),  # convolutional strides
+    dropout=0.2,
+    norm="batch").to(device)
 
 if USE_COMPILED:
     warp_layer = Warp(3, padding_mode="zeros").to(device)
@@ -66,7 +90,7 @@ else:
 reg.train()
 
 
-optimizerR = torch.optim.Adam(reg.parameters(), lr=1e-6)
+optimizerR = torch.optim.Adam(reg.parameters(), lr=lr)
 
 for epoch in range(max_epochs):
 
@@ -77,12 +101,26 @@ for epoch in range(max_epochs):
     ddf_ds = reg(input_data)
     image_moved = warp_layer(moving_ds[None, ], ddf_ds)
 
-    vol_loss = image_loss(image_moved, target_ds[None, ])
+    imgloss = image_loss(image_moved, target_ds[None, ])
+    regloss = reg_penalty * regularization(ddf_ds)
+
+    vol_loss =  imgloss + regloss
+
+    print(f'imgloss:{imgloss},   regloss:{regloss}')
 
     vol_loss.backward()
     optimizerR.step()
 
     print(f'epoch_loss:{vol_loss} for epoch:{epoch}')
+
+
+
+write_nifti(image_moved[0, 0], 'moved_ds.nii.gz', affine=target_ds.affine)
+write_nifti(target_ds[0], 'target_ds.nii.gz', affine=target_ds.affine)
+write_nifti(moving_ds[0], 'moving_ds.nii.gz', affine=target_ds.affine)
+write_nifti(torch.permute(ddf_ds[0],[1,2,3,0]),'ddf_ds.nii.gz',affine=target_ds.affine)
+jdet_ds = jacobian_determinant(ddf_ds[0])
+write_nifti(jdet_ds,'jdet_ds.nii.gz',affine=target_ds.affine)
 
 
 
@@ -103,6 +141,8 @@ label, meta = LoadImage()(label_file)
 label = EnsureChannelFirst()(label)
 warped_labels = apply_warp(ddf[None, ], label[None,], target[None, ], interp_mode='nearest')
 write_nifti(warped_labels[0,0], output_label_file, affine=target.affine)
+jdet = jacobian_determinant(ddf)
+write_nifti(jdet,'jdet.nii.gz',affine=target.affine)
 
 
 #####################
