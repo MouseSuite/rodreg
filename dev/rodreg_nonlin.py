@@ -46,8 +46,8 @@ size_moving = moving[0].shape
 size_target = target[0].shape
 
 
-moving_ds = Resize(spatial_size=[SZ, SZ, SZ])(moving).to(device)
-target_ds = Resize(spatial_size=[SZ, SZ, SZ])(target).to(device)
+moving_ds = Resize(spatial_size=[SZ, SZ, SZ],mode='trilinear')(moving).to(device)
+target_ds = Resize(spatial_size=[SZ, SZ, SZ],mode='trilinear')(target).to(device)
 
 moving_ds = ScaleIntensityRangePercentiles(
     lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(moving_ds)
@@ -55,30 +55,12 @@ target_ds = ScaleIntensityRangePercentiles(
     lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(target_ds)
 
 
-# GlobalNet is a NN with Affine head
-reg2 = GlobalNet(
-    image_size=(SZ, SZ, SZ),
-    spatial_dims=3,
-    in_channels=2,  # moving and fixed
-    num_channel_initial=2,
-    depth=2).to(device)
-
-
-
-reg3 = LocalNet(
-    spatial_dims=3,
-    in_channels=2,
-    out_channels=3,
-    num_channel_initial=32,
-    extract_levels=[0,1,2,3,4,5], # check this this seems incorrect
-    out_activation=None,
-    out_kernel_initializer="zeros").to(device)
 
 reg = unet.UNet(spatial_dims=3,  # spatial dims
     in_channels=2,
     out_channels=3,# output channels (to represent 3D displacement vector field)
     channels=(16, 32, 32, 32, 32),  # channel sequence
-    strides=(1, 2, 2, 2),  # convolutional strides
+    strides=(1, 2, 2, 4),  # convolutional strides
     dropout=0.2,
     norm="batch").to(device)
 
