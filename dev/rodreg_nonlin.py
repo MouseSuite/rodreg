@@ -27,11 +27,11 @@ output_label_file = 'nonlin_warped_atlas1e-1.label.nii.gz'
 image_loss =  MSELoss()# LocalNormalizedCrossCorrelationLoss() #
 regularization = BendingEnergyLoss()
 
-max_epochs = 3000
+max_epochs = 6000
 nn_input_size = 64
 
-reg_penalty = .3
-lr = 1e-2
+reg_penalty = 0.3
+lr = 1e-3
 
 #######################
 set_determinism(42)
