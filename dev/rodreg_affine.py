@@ -16,14 +16,14 @@ from typing import List
 
 device = 'cuda'
 
-moving_file = 'distorted_M2_LCRP.bfc.nii.gz'#'/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
+moving_file = '/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz' #'distorted_M2_LCRP.bfc.nii.gz'#
 target_file = 'F2_BC.bfc.nii.gz'  # '
-output_file = 'warped_atlas.bfc.nii.gz'
+output_file = 'linwarped_atlas.bfc.nii.gz'
 label_file = '/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.label.nii.gz'
-output_label_file = 'warped_atlas.label.nii.gz'
+output_label_file = 'linwarped_atlas.label.nii.gz'
 
 # LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() # #
-image_loss = LocalNormalizedCrossCorrelationLoss() #MSELoss()
+image_loss = MSELoss() #LocalNormalizedCrossCorrelationLoss() #MSELoss()
 max_epochs = 3000
 nn_input_size = 64
 

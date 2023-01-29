@@ -17,10 +17,10 @@ from networks import LocalNet2
 
 device = 'cuda'
 
-moving_file = 'warped_atlas.bfc.nii.gz'#'/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
+moving_file = 'linwarped_atlas.bfc.nii.gz'#'/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
 target_file = 'F2_BC.bfc.nii.gz'  # '
 output_file = 'nonlin_warped_atlas1e-1.bfc.nii.gz'
-label_file = 'warped_atlas.label.nii.gz'
+label_file = 'linwarped_atlas.label.nii.gz'
 output_label_file = 'nonlin_warped_atlas1e-1.label.nii.gz'
 
 # LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() # #
