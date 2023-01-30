@@ -132,9 +132,9 @@ def main():
 
     args = parser.parse_args()
 
-    affine_reg(fixed_file=args.fixed_file, moving_file=args.moving_file, output_file=args.output_file, ddf_file, loss='cc', nn_input_size=64, lr=1e-6, max_epochs=5000, device='cuda'):
+    affine_reg(fixed_file=args.fixed_file, moving_file=args.moving_file, output_file=args.output_file, ddf_file=args.ddf_file, loss=args.loss, nn_input_size=args.nn_input_size, lr=args.lr, max_epochs=args.max_epochs, device=args.device)
 
-
+    '''
     device = 'cuda'
     moving_file = '/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
     fixed_file = 'F2_BC.bfc.nii.gz'  # '
@@ -149,3 +149,4 @@ def main():
     nn_input_size = 64
     lr = 1e-6
 
+    '''
