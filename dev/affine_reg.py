@@ -97,12 +97,12 @@ def main():
     parser = argparse.ArgumentParser(
         description='Affine registration for mouse brains')
 
-    parser.add_argument('-m', '--moving-file', type=str,
+    parser.add_argument('moving-file', type=str,
                         help='moving file name')
-    parser.add_argument('-f', '--fixed-file', type=str, help='fixed file name')
-    parser.add_argument('-o', '--output-file', type=str,
+    parser.add_argument('fixed-file', type=str, help='fixed file name')
+    parser.add_argument('output-file', type=str,
                         help='output file name')
-    parser.add_argument('-d', '--ddf-file', type=str,
+    parser.add_argument('-ddf', '--ddf-file', type=str,
                         help='dense displacement field file name')
     parser.add_argument('--nn_input_size', type=int, default=64,
                         help='size of the neural network input (default: 64)')
@@ -136,3 +136,8 @@ def main():
     lr = 1e-6
 
     '''
+
+
+
+if __name__ == "__main__":
+    main()
