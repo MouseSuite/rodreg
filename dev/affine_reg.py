@@ -97,10 +97,10 @@ def main():
     parser = argparse.ArgumentParser(
         description='Affine registration for mouse brains')
 
-    parser.add_argument('moving-file', type=str,
+    parser.add_argument('moving_file', type=str,
                         help='moving file name')
-    parser.add_argument('fixed-file', type=str, help='fixed file name')
-    parser.add_argument('output-file', type=str,
+    parser.add_argument('fixed_file', type=str, help='fixed file name')
+    parser.add_argument('output_file', type=str,
                         help='output file name')
     parser.add_argument('-ddf', '--ddf-file', type=str,
                         help='dense displacement field file name')
@@ -116,6 +116,7 @@ def main():
                         help='loss function: mse, cc or mi')
 
     args = parser.parse_args()
+    print(args)
 
     affine_reg(fixed_file=args.fixed_file, moving_file=args.moving_file, output_file=args.output_file, ddf_file=args.ddf_file,
                loss=args.loss, nn_input_size=args.nn_input_size, lr=args.lr, max_epochs=args.max_epochs, device=args.device)
