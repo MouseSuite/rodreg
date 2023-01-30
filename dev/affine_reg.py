@@ -2,16 +2,11 @@ from monai.utils import set_determinism
 from monai.networks.nets import GlobalNet
 from monai.config import USE_COMPILED
 from monai.networks.blocks import Warp
-import torch
 from torch.nn import MSELoss
 from monai.transforms import LoadImage, Resize, EnsureChannelFirst, ScaleIntensityRangePercentiles
 from monai.data.nifti_writer import write_nifti
-from monai.losses.ssim_loss import SSIMLoss
 from monai.losses import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
-from nilearn.image import resample_to_img, resample_img, crop_img, load_img
-from torch.nn.functional import grid_sample
-from warp_utils import get_grid, apply_warp
-from typing import List
+from warp_utils import apply_warp
 import argparse
 
 
