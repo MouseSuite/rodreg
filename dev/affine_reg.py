@@ -8,6 +8,7 @@ from monai.data.nifti_writer import write_nifti
 from monai.losses import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from warp_utils import apply_warp
 import argparse
+import torch
 
 
 def affine_reg(fixed_file, moving_file, output_file, ddf_file, loss='mse', nn_input_size=64, lr=1e-6, max_epochs=5000, device='cuda'):
