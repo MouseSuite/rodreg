@@ -15,10 +15,6 @@ from typing import List
 import argparse
 
 
-
-
-#######################
-
 def affine_reg(fixed_file, moving_file, output_file, ddf_file, loss='mse', nn_input_size=64, lr=1e-6, max_epochs=5000, device='cuda'):
 
     set_determinism(42)
@@ -32,7 +28,6 @@ def affine_reg(fixed_file, moving_file, output_file, ddf_file, loss='mse', nn_in
     else:
         AssertionError
 
-
     set_determinism(42)
 
     moving, moving_meta = LoadImage()(moving_file)
@@ -44,7 +39,6 @@ def affine_reg(fixed_file, moving_file, output_file, ddf_file, loss='mse', nn_in
     size_moving = moving[0].shape
     size_target = target[0].shape
 
-
     moving_ds = Resize(spatial_size=[SZ, SZ, SZ])(moving).to(device)
     target_ds = Resize(spatial_size=[SZ, SZ, SZ])(target).to(device)
 
@@ -52,7 +46,6 @@ def affine_reg(fixed_file, moving_file, output_file, ddf_file, loss='mse', nn_in
         lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(moving_ds)
     target_ds = ScaleIntensityRangePercentiles(
         lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(target_ds)
-
 
     # GlobalNet is a NN with Affine head
     reg = GlobalNet(
@@ -68,7 +61,6 @@ def affine_reg(fixed_file, moving_file, output_file, ddf_file, loss='mse', nn_in
         warp_layer = Warp("bilinear", padding_mode="zeros").to(device)
 
     reg.train()
-
 
     optimizerR = torch.optim.Adam(reg.parameters(), lr=1e-6)
 
@@ -88,7 +80,6 @@ def affine_reg(fixed_file, moving_file, output_file, ddf_file, loss='mse', nn_in
 
         print(f'epoch_loss:{vol_loss} for epoch:{epoch}')
 
-
     ddfx = Resize(spatial_size=size_target, mode='trilinear')(
         ddf_ds[:, 0])*(size_moving[0]/SZ)
     ddfy = Resize(spatial_size=size_target, mode='trilinear')(
@@ -101,10 +92,8 @@ def affine_reg(fixed_file, moving_file, output_file, ddf_file, loss='mse', nn_in
     # Apply the warp
     image_movedo = apply_warp(ddf[None, ], moving[None, ], target[None, ])
     write_nifti(image_movedo[0, 0], output_file, affine=target.affine)
-    write_nifti(torch.permute(ddf, [1, 2, 3, 0]), ddf_file, affine=target.affine)
-
-
-
+    write_nifti(torch.permute(ddf, [1, 2, 3, 0]),
+                ddf_file, affine=target.affine)
 
 
 def main():
@@ -132,7 +121,8 @@ def main():
 
     args = parser.parse_args()
 
-    affine_reg(fixed_file=args.fixed_file, moving_file=args.moving_file, output_file=args.output_file, ddf_file=args.ddf_file, loss=args.loss, nn_input_size=args.nn_input_size, lr=args.lr, max_epochs=args.max_epochs, device=args.device)
+    affine_reg(fixed_file=args.fixed_file, moving_file=args.moving_file, output_file=args.output_file, ddf_file=args.ddf_file,
+               loss=args.loss, nn_input_size=args.nn_input_size, lr=args.lr, max_epochs=args.max_epochs, device=args.device)
 
     '''
     device = 'cuda'
