@@ -32,6 +32,7 @@ class Aligner:
 			image_loss = GlobalMutualInformationLoss()
 		else:
 			AssertionError
+			
 		set_determinism(42)		
 
 	def loadMoving(self, moving_file):
@@ -102,7 +103,9 @@ class Aligner:
 		self.loadTarget(fixed_file)
 		self.performAffine()
 		self.saveWarpedFile(output_file)
-		self.saveDeformationField(ddf_file)
+
+		if ddf_file is not None:
+			self.saveDeformationField(ddf_file)
 
 
 def main():
