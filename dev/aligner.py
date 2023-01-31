@@ -6,11 +6,11 @@ from monai.config import USE_COMPILED
 from monai.networks.blocks import Warp
 from torch.nn import MSELoss
 from monai.transforms import LoadImage, Resize, EnsureChannelFirst, ScaleIntensityRangePercentiles
-from monai.data.nifti_writer import write_nifti
 from monai.losses import GlobalMutualInformationLoss, LocalNormalizedCrossCorrelationLoss
 from warp_utils import apply_warp
 import argparse
 import torch
+import nibabel as nib
 
 class Aligner:
 	image_loss = MSELoss()
@@ -86,12 +86,13 @@ class Aligner:
 		del ddf_ds, ddfx, ddfy, ddfz
 
 	def saveDeformationField(self,ddf_file):
-		write_nifti(torch.permute(self.ddf, [1, 2, 3, 0]),ddf_file, affine=self.target.affine)
+		nib.save(nib.Nifti1Image(torch.permute(self.ddf, [1, 2, 3, 0]).detach().cpu().numpy(), self.target.affine), ddf_file)
+
 
 	def saveWarpedFile(self,output_file):
     # Apply the warp
 		image_movedo = apply_warp(self.ddf[None, ], self.moving[None, ], self.target[None, ])
-		write_nifti(image_movedo[0, 0], output_file, affine=self.target.affine)
+		nib.save(nib.Nifti1Image(image_movedo[0, 0].detach().cpu().numpy(), self.target.affine), output_file)
 
 	def affine_reg(self, fixed_file, moving_file, output_file, ddf_file, loss='mse', nn_input_size=64, lr=1e-6, max_epochs=5000, device='cuda'):
 		self.setLoss(loss)
