@@ -16,6 +16,12 @@ from typing import List
 
 device = 'cuda'
 
+moving_file = 'linwarped_aba3.nii.gz'#'/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
+target_file = 'dev/test_case/F2_BC.bfc.nii.gz'  # '
+output_file = 'nonlin_warped_atlas1e-1.bfc.nii.gz'
+label_file = 'linwarped_aba3.nii.gz'
+output_label_file = 'linwarped_aba3-1.label.nii.gz'
+
 moving_file = '/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz' #'distorted_M2_LCRP.bfc.nii.gz'#
 target_file = 'F2_BC.bfc.nii.gz'  # '
 output_file = 'linwarped_atlas.bfc.nii.gz'

@@ -13,25 +13,26 @@ from torch.nn.functional import grid_sample
 from warp_utils import get_grid, apply_warp, jacobian_determinant
 from typing import List
 from monai.losses import BendingEnergyLoss
+from deform_losses import BendingEnergyLoss as myBendingEnergyLoss
 from networks import LocalNet2
 
 device = 'cuda'
 
-moving_file = 'linwarped_atlas.bfc.nii.gz'#'/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
-target_file = 'F2_BC.bfc.nii.gz'  # '
+moving_file = 'linwarped_aba3.nii.gz'#'/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
+target_file = 'dev/test_case/F2_BC.bfc.nii.gz'  # '
 output_file = 'nonlin_warped_atlas1e-1.bfc.nii.gz'
-label_file = 'linwarped_atlas.label.nii.gz'
-output_label_file = 'nonlin_warped_atlas1e-1.label.nii.gz'
+label_file = 'linwarped_aba3.nii.gz'
+output_label_file = 'linwarped_aba3-1.label.nii.gz'
 
-# LocalNormalizedCrossCorrelationLoss() #GlobalMutualInformationLoss() # #
-image_loss =  MSELoss()# LocalNormalizedCrossCorrelationLoss() #
-regularization = BendingEnergyLoss()
+# LocalNormalizedCrossCorrelationLoss() ##
+image_loss = LocalNormalizedCrossCorrelationLoss()# MSELoss() #GlobalMutualInformationLoss() #  #LocalNormalizedCrossCorrelationLoss() #MSELoss()# 
+regularization = myBendingEnergyLoss()
 
-max_epochs = 6000
+max_epochs = 3000
 nn_input_size = 64
 
-reg_penalty = 0.3
-lr = 1e-3
+reg_penalty = .3
+lr = .01
 
 #######################
 set_determinism(42)
