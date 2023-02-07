@@ -12,6 +12,13 @@ import argparse
 import torch
 import nibabel as nib
 
+
+
+
+
+
+
+
 class dscolors:
 	red  	 = '\033[91m'
 	green  = '\033[92m'
@@ -87,7 +94,7 @@ class Aligner:
 			vol_loss.backward()
 			optimizerR.step()
 			print('epoch_loss:',dscolors.blue,f'{vol_loss}',dscolors.clear,
-				' for epoch:', dscolors.blue,f'{epoch}',dscolors.clear, '',end='\r')
+				' for epoch:', dscolors.green,f'{epoch}/{self.max_epochs}',dscolors.clear, '',end='\r')
             
 		size_moving = self.moving[0].shape
 		size_target = self.target[0].shape
