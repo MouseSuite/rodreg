@@ -34,21 +34,27 @@ class Warper:
 	# device = 'cuda'
 	# max_epochs = 3000
 	# lr = .01
+	def loadMoving(self, moving_file):
+		self.moving, self.moving_meta = LoadImage()(moving_file)
+		self.moving = EnsureChannelFirst()(self.moving)
+
+	def loadTarget(self, fixed_file):
+		self.target, self.moving_meta = LoadImage()(fixed_file)
+		self.target = EnsureChannelFirst()(self.target)
+
 	def nonlinear_reg(self,target_file, moving_file, output_file, label_file, ddf_file, output_label_file, jacobian_determinant_file, loss, nn_input_size, lr, max_epochs, device):
 		image_loss = LocalNormalizedCrossCorrelationLoss()# MSELoss() #GlobalMutualInformationLoss() #  #LocalNormalizedCrossCorrelationLoss() #MSELoss()# 
 		regularization = myBendingEnergyLoss()
 		reg_penalty = .3
 		#######################
 		set_determinism(42)
-		moving, moving_meta = LoadImage()(moving_file)
-		target, moving_meta = LoadImage()(target_file)
+		self.loadMoving(moving_file)
+		self.loadTarget(target_file)
 		SZ = nn_input_size
-		moving = EnsureChannelFirst()(moving)
-		target = EnsureChannelFirst()(target)
-		size_moving = moving[0].shape
-		size_target = target[0].shape
-		moving_ds = Resize(spatial_size=[SZ, SZ, SZ],mode='trilinear')(moving).to(device)
-		target_ds = Resize(spatial_size=[SZ, SZ, SZ],mode='trilinear')(target).to(device)
+		size_moving = self.moving[0].shape
+		size_target = self.target[0].shape
+		moving_ds = Resize(spatial_size=[SZ, SZ, SZ],mode='trilinear')(self.moving).to(device)
+		target_ds = Resize(spatial_size=[SZ, SZ, SZ],mode='trilinear')(self.target).to(device)
 		moving_ds = ScaleIntensityRangePercentiles(
 				lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(moving_ds)
 		target_ds = ScaleIntensityRangePercentiles(
@@ -99,12 +105,12 @@ class Warper:
 		del ddf_ds, ddfx, ddfy, ddfz
 		# Apply the warp
 		print(dscolors.green+'applying warp'+dscolors.clear)
-		image_movedo = apply_warp(ddf[None, ], moving[None, ], target[None, ])
+		image_movedo = apply_warp(ddf[None, ], self.moving[None, ], self.target[None, ])
 		print(dscolors.green+'saving warped output: '+dscolors.clear+output_file)
-		write_nifti(image_movedo[0, 0], output_file, affine=target.affine)
+		write_nifti(image_movedo[0, 0], output_file, affine=self.target.affine)
 		if ( ddf_file != "" ):
 			print(dscolors.green+'saving ddf: '+dscolors.clear+ddf_file)
-			write_nifti(torch.permute(ddf,[1,2,3,0]),ddf_file,affine=target.affine)
+			write_nifti(torch.permute(ddf,[1,2,3,0]),ddf_file,affine=self.target.affine)
 
 		# Apply the warp to labels
 		if ( label_file != "" and output_label_file != ""):
@@ -112,12 +118,12 @@ class Warper:
 			print(dscolors.green+'saving warped labels: '+dscolors.clear+output_label_file+dscolors.clear)
 			label, meta = LoadImage()(label_file)
 			label = EnsureChannelFirst()(label)
-			warped_labels = apply_warp(ddf[None, ], label[None,], target[None, ], interp_mode='nearest')
-			write_nifti(warped_labels[0,0], output_label_file, affine=target.affine)
+			warped_labels = apply_warp(ddf[None, ], label[None,], self.target[None, ], interp_mode='nearest')
+			write_nifti(warped_labels[0,0], output_label_file, affine=self.target.affine)
 
 		if ( jacobian_determinant_file != ""):
 			jdet = jacobian_determinant(ddf)
-			write_nifti(jdet,'jdet.nii.gz',affine=target.affine)
+			write_nifti(jdet,'jdet.nii.gz',affine=self.target.affine)
 
 #####################
 def main():
