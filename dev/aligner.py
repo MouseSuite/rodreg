@@ -12,6 +12,17 @@ import argparse
 import torch
 import nibabel as nib
 
+class dscolors:
+	red  	 = '\033[91m'
+	green  = '\033[92m'
+	yellow = '\033[93m'
+	blue   = '\033[94m'
+	purple = '\033[95m'
+	cyan   = '\033[96m'
+	clear  = '\033[0m'
+	bold   = '\033[1m'
+	ul     = '\033[4m'
+
 class Aligner:
 	image_loss = MSELoss()
 	nn_input_size=64
@@ -75,7 +86,8 @@ class Aligner:
 			vol_loss = self.image_loss(image_moved, target_ds[None, ])
 			vol_loss.backward()
 			optimizerR.step()
-			print(f'epoch_loss:{vol_loss} for epoch:{epoch}')
+			print('epoch_loss:',dscolors.blue,f'{vol_loss}',dscolors.clear,
+				' for epoch:', dscolors.blue,f'{epoch}',dscolors.clear, '',end='\r')
             
 		size_moving = self.moving[0].shape
 		size_target = self.target[0].shape
@@ -87,7 +99,6 @@ class Aligner:
 
 	def saveDeformationField(self,ddf_file):
 		nib.save(nib.Nifti1Image(torch.permute(self.ddf, [1, 2, 3, 0]).detach().cpu().numpy(), self.target.affine), ddf_file)
-
 
 	def saveWarpedFile(self,output_file):
     # Apply the warp
@@ -124,7 +135,7 @@ def main():
     parser.add_argument('-l', '--loss', type=str, default='mse', help='loss function: mse, cc or mi')
 
     args = parser.parse_args()
-    print(args)
+    #print(args)
     aligner=Aligner()
     aligner.affine_reg(fixed_file=args.fixed_file, moving_file=args.moving_file, output_file=args.output_file, ddf_file=args.ddf_file,
                loss=args.loss, nn_input_size=args.nn_input_size, lr=args.lr, max_epochs=args.max_epochs, device=args.device)
