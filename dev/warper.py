@@ -30,97 +30,94 @@ class dscolors:
 	bold   = '\033[1m'
 	ul     = '\033[4m'
 
-# class Warper:
+class Warper:
 	# device = 'cuda'
 	# max_epochs = 3000
 	# lr = .01
+	def nonlinear_reg(self,target_file, moving_file, output_file, label_file, ddf_file, output_label_file, jacobian_determinant_file, loss, nn_input_size, lr, max_epochs, device):
+		image_loss = LocalNormalizedCrossCorrelationLoss()# MSELoss() #GlobalMutualInformationLoss() #  #LocalNormalizedCrossCorrelationLoss() #MSELoss()# 
+		regularization = myBendingEnergyLoss()
+		reg_penalty = .3
+		#######################
+		set_determinism(42)
+		moving, moving_meta = LoadImage()(moving_file)
+		target, moving_meta = LoadImage()(target_file)
+		SZ = nn_input_size
+		moving = EnsureChannelFirst()(moving)
+		target = EnsureChannelFirst()(target)
+		size_moving = moving[0].shape
+		size_target = target[0].shape
+		moving_ds = Resize(spatial_size=[SZ, SZ, SZ],mode='trilinear')(moving).to(device)
+		target_ds = Resize(spatial_size=[SZ, SZ, SZ],mode='trilinear')(target).to(device)
+		moving_ds = ScaleIntensityRangePercentiles(
+				lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(moving_ds)
+		target_ds = ScaleIntensityRangePercentiles(
+				lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(target_ds)
+		reg = unet.UNet(spatial_dims=3,  # spatial dims
+				in_channels=2,
+				out_channels=3,# output channels (to represent 3D displacement vector field)
+				channels=(16, 32, 32, 32, 32),  # channel sequence
+				strides=(1, 2, 2, 4),  # convolutional strides
+				dropout=0.2,
+				norm="batch").to(device)
+		if USE_COMPILED:
+				warp_layer = Warp(3, padding_mode="zeros").to(device)
+		else:
+				warp_layer = Warp("bilinear", padding_mode="zeros").to(device)
+		reg.train()
+		optimizerR = torch.optim.Adam(reg.parameters(), lr=lr)
+		print(dscolors.green+'optimizing'+dscolors.clear)
+		for epoch in range(max_epochs):
+			optimizerR.zero_grad()
+			input_data = torch.cat((moving_ds, target_ds), dim=0)
+			input_data = input_data[None, ]
+			ddf_ds = reg(input_data)
+			image_moved = warp_layer(moving_ds[None, ], ddf_ds)
+			imgloss = image_loss(image_moved, target_ds[None, ])
+			regloss = reg_penalty * regularization(ddf_ds)
+			vol_loss =  imgloss + regloss
 
+			print('imgloss:'+dscolors.blue+f'{imgloss}'+dscolors.clear
+						+', regloss:'+dscolors.blue+f'{regloss}'+dscolors.clear)#, end=' ')
+			vol_loss.backward()
+			optimizerR.step()
+			print('epoch_loss:'+dscolors.blue+f'{vol_loss}'+dscolors.clear
+					+' for epoch:'+dscolors.blue+f'{epoch}'+'/'+f'{max_epochs}'+dscolors.clear+'     ',end='\r\033[A')
+		
+		print('\n\n')
+		# write_nifti(image_moved[0, 0], 'moved_ds.nii.gz', affine=target_ds.affine)
+		# write_nifti(target_ds[0], 'target_ds.nii.gz', affine=target_ds.affine)
+		# write_nifti(moving_ds[0], 'moving_ds.nii.gz', affine=target_ds.affine)
+		# write_nifti(torch.permute(ddf_ds[0],[1,2,3,0]),'ddf_ds.nii.gz',affine=target_ds.affine)
+		# jdet_ds = jacobian_determinant(ddf_ds[0])
+		# write_nifti(jdet_ds,'jdet_ds.nii.gz',affine=target_ds.affine)
+		print(dscolors.green+'computing deformation field'+dscolors.clear)
+		ddfx = Resize(spatial_size=size_target, mode='trilinear')(ddf_ds[:, 0])*(size_moving[0]/SZ)
+		ddfy = Resize(spatial_size=size_target, mode='trilinear')(ddf_ds[:, 1])*(size_moving[1]/SZ)
+		ddfz = Resize(spatial_size=size_target, mode='trilinear')(ddf_ds[:, 2])*(size_moving[2]/SZ)
+		ddf = torch.cat((ddfx, ddfy, ddfz), dim=0)
+		del ddf_ds, ddfx, ddfy, ddfz
+		# Apply the warp
+		print(dscolors.green+'applying warp'+dscolors.clear)
+		image_movedo = apply_warp(ddf[None, ], moving[None, ], target[None, ])
+		print(dscolors.green+'saving warped output: '+dscolors.clear+output_file)
+		write_nifti(image_movedo[0, 0], output_file, affine=target.affine)
+		if ( ddf_file != "" ):
+			print(dscolors.green+'saving ddf: '+dscolors.clear+ddf_file)
+			write_nifti(torch.permute(ddf,[1,2,3,0]),ddf_file,affine=target.affine)
 
-def nonlinear_reg(target_file, moving_file, output_file, label_file, ddf_file, outputprefix, loss, nn_input_size, lr, max_epochs, device):
-	image_loss = LocalNormalizedCrossCorrelationLoss()# MSELoss() #GlobalMutualInformationLoss() #  #LocalNormalizedCrossCorrelationLoss() #MSELoss()# 
-	regularization = myBendingEnergyLoss()
-	reg_penalty = .3
-	#######################
-	set_determinism(42)
-	moving, moving_meta = LoadImage()(moving_file)
-	target, moving_meta = LoadImage()(target_file)
+		# Apply the warp to labels
+		if ( label_file != "" and output_label_file != ""):
+			print(dscolors.green+'warping '+label_file+dscolors.clear)
+			print(dscolors.green+'saving warped labels: '+dscolors.clear+output_label_file+dscolors.clear)
+			label, meta = LoadImage()(label_file)
+			label = EnsureChannelFirst()(label)
+			warped_labels = apply_warp(ddf[None, ], label[None,], target[None, ], interp_mode='nearest')
+			write_nifti(warped_labels[0,0], output_label_file, affine=target.affine)
 
-	SZ = nn_input_size
-	moving = EnsureChannelFirst()(moving)
-	target = EnsureChannelFirst()(target)
-	size_moving = moving[0].shape
-	size_target = target[0].shape
-
-
-	moving_ds = Resize(spatial_size=[SZ, SZ, SZ],mode='trilinear')(moving).to(device)
-	target_ds = Resize(spatial_size=[SZ, SZ, SZ],mode='trilinear')(target).to(device)
-
-	moving_ds = ScaleIntensityRangePercentiles(
-			lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(moving_ds)
-	target_ds = ScaleIntensityRangePercentiles(
-			lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True)(target_ds)
-
-	reg = unet.UNet(spatial_dims=3,  # spatial dims
-			in_channels=2,
-			out_channels=3,# output channels (to represent 3D displacement vector field)
-			channels=(16, 32, 32, 32, 32),  # channel sequence
-			strides=(1, 2, 2, 4),  # convolutional strides
-			dropout=0.2,
-			norm="batch").to(device)
-	if USE_COMPILED:
-			warp_layer = Warp(3, padding_mode="zeros").to(device)
-	else:
-			warp_layer = Warp("bilinear", padding_mode="zeros").to(device)
-	reg.train()
-	optimizerR = torch.optim.Adam(reg.parameters(), lr=lr)
-	print(dscolors.green+'optimizing'+dscolors.clear)
-	for epoch in range(max_epochs):
-		optimizerR.zero_grad()
-		input_data = torch.cat((moving_ds, target_ds), dim=0)
-		input_data = input_data[None, ]
-		ddf_ds = reg(input_data)
-		image_moved = warp_layer(moving_ds[None, ], ddf_ds)
-		imgloss = image_loss(image_moved, target_ds[None, ])
-		regloss = reg_penalty * regularization(ddf_ds)
-		vol_loss =  imgloss + regloss
-
-		print('imgloss:'+dscolors.blue+f'{imgloss}'+dscolors.clear
-					+', regloss:'+dscolors.blue+f'{regloss}'+dscolors.clear)#, end=' ')
-		vol_loss.backward()
-		optimizerR.step()
-		print('epoch_loss:'+dscolors.blue+f'{vol_loss}'+dscolors.clear
-				+' for epoch:'+dscolors.blue+f'{epoch}'+dscolors.clear,end='\r\033[A')
-	
-	print('\n\n')
-	# write_nifti(image_moved[0, 0], 'moved_ds.nii.gz', affine=target_ds.affine)
-	# write_nifti(target_ds[0], 'target_ds.nii.gz', affine=target_ds.affine)
-	# write_nifti(moving_ds[0], 'moving_ds.nii.gz', affine=target_ds.affine)
-	# write_nifti(torch.permute(ddf_ds[0],[1,2,3,0]),'ddf_ds.nii.gz',affine=target_ds.affine)
-	# jdet_ds = jacobian_determinant(ddf_ds[0])
-	# write_nifti(jdet_ds,'jdet_ds.nii.gz',affine=target_ds.affine)
-	print(dscolors.green+'computing deformation field'+dscolors.clear)
-	ddfx = Resize(spatial_size=size_target, mode='trilinear')(ddf_ds[:, 0])*(size_moving[0]/SZ)
-	ddfy = Resize(spatial_size=size_target, mode='trilinear')(ddf_ds[:, 1])*(size_moving[1]/SZ)
-	ddfz = Resize(spatial_size=size_target, mode='trilinear')(ddf_ds[:, 2])*(size_moving[2]/SZ)
-	ddf = torch.cat((ddfx, ddfy, ddfz), dim=0)
-	del ddf_ds, ddfx, ddfy, ddfz
-	# Apply the warp
-	print(dscolors.green+'applying warp'+dscolors.clear)
-	image_movedo = apply_warp(ddf[None, ], moving[None, ], target[None, ])
-	print(dscolors.green+'saving warped output'+dscolors.clear)
-	write_nifti(image_movedo[0, 0], output_file, affine=target.affine)
-	if ( ddf_file != "" ):
-		print(dscolors.green+'saving ddf'+dscolors.clear)
-		write_nifti(torch.permute(ddf,[1,2,3,0]),ddf_file,affine=target.affine)
-	# Apply the warp to labels
-	if ( label_file != "" ):
-		output_label_file="x.label.nii.gz"
-		label, meta = LoadImage()(label_file)
-		label = EnsureChannelFirst()(label)
-		warped_labels = apply_warp(ddf[None, ], label[None,], target[None, ], interp_mode='nearest')
-		write_nifti(warped_labels[0,0], output_label_file, affine=target.affine)
-	jdet = jacobian_determinant(ddf)
-	write_nifti(jdet,'jdet.nii.gz',affine=target.affine)
+		if ( jacobian_determinant_file != ""):
+			jdet = jacobian_determinant(ddf)
+			write_nifti(jdet,'jdet.nii.gz',affine=target.affine)
 
 #####################
 def main():
@@ -129,24 +126,23 @@ def main():
 	parser.add_argument('moving_file', type=str, help='moving file name')
 	parser.add_argument('fixed_file', type=str, help='fixed file name')
 	parser.add_argument('output_file', type=str, help='output file name')
-	parser.add_argument('-label', '--label-file', type=str, help='output label file name')
-	parser.add_argument('-ddf', '--ddf-file', type=str, help='dense displacement field file name')
+	parser.add_argument('--label-file', '--label', type=str, default='', help='input label file name')
+	parser.add_argument('--output-label-file', type=str, default='', help='output label file name')
+	parser.add_argument('-j','--jacobian', type=str, default='', help='output jacobian file name')
+	parser.add_argument('-ddf', '--ddf-file', type=str, default='', help='dense displacement field file name')
 	parser.add_argument('--nn_input_size', type=int, default=64, help='size of the neural network input (default: 64)')
 	parser.add_argument('--lr', type=float, default=.01, help='learning rate (default: 1e-4)')
 	parser.add_argument('-e', '--max-epochs', type=int, default=3000, help='maximum interations')
 	parser.add_argument('-d', '--device', type=str, default='cuda', help='device: cuda, cpu, etc.')
 	parser.add_argument('-l', '--loss', type=str, default='mse', help='loss function: mse, cc or mi')
-	parser.add_argument('-p', '--prefix', type=str, help='output prefix')
+	# parser.add_argument('-p', '--prefix', type=str, help='output prefix')
 	args = parser.parse_args()
-	nonlinear_reg(target_file=args.fixed_file, moving_file=args.moving_file, output_file=args.output_file, ddf_file=args.ddf_file, 
+	warper=Warper()
+
+	warper.nonlinear_reg(target_file=args.fixed_file, moving_file=args.moving_file, output_file=args.output_file, ddf_file=args.ddf_file, 
 		label_file=args.label_file,
-		outputprefix=args.prefix,
+		output_label_file=args.output_label_file, jacobian_determinant_file="",
 		loss=args.loss, nn_input_size=args.nn_input_size, lr=args.lr, max_epochs=args.max_epochs, device=args.device)
 
 if __name__ == "__main__":
     main()
-
-
-#print(args)
-# warper=Warper()
-# warper.
