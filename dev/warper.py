@@ -34,6 +34,23 @@ class Warper:
 	# device = 'cuda'
 	# max_epochs = 3000
 	# lr = .01
+	def __init__(self):
+		set_determinism(42)
+
+
+	# def setLoss(self, loss):
+	# 	self.loss=loss
+	# 	if loss == 'mse':
+	# 		image_loss = MSELoss()
+	# 	elif loss == 'cc':
+	# 		image_loss = LocalNormalizedCrossCorrelationLoss()
+	# 	elif loss == 'mi':
+	# 		image_loss = GlobalMutualInformationLoss()
+	# 	else:
+	# 		AssertionError
+			
+	# 	set_determinism(42)	
+
 	def loadMoving(self, moving_file):
 		self.moving, self.moving_meta = LoadImage()(moving_file)
 		self.moving = EnsureChannelFirst()(self.moving)
@@ -41,6 +58,14 @@ class Warper:
 	def loadTarget(self, fixed_file):
 		self.target, self.moving_meta = LoadImage()(fixed_file)
 		self.target = EnsureChannelFirst()(self.target)
+
+	def saveWarpedLabels(self, label_file,output_label_file):
+		print(dscolors.green+'warping '+label_file+dscolors.clear)
+		print(dscolors.green+'saving warped labels: '+dscolors.clear+output_label_file+dscolors.clear)
+		label, meta = LoadImage()(label_file)
+		label = EnsureChannelFirst()(label)
+		warped_labels = apply_warp(self.ddf[None, ], label[None,], self.target[None, ], interp_mode='nearest')
+		write_nifti(warped_labels[0,0], output_label_file, affine=self.target.affine)
 
 	def nonlinear_reg(self,target_file, moving_file, output_file, label_file, ddf_file, output_label_file, jacobian_determinant_file, loss, nn_input_size, lr, max_epochs, device):
 		image_loss = LocalNormalizedCrossCorrelationLoss()# MSELoss() #GlobalMutualInformationLoss() #  #LocalNormalizedCrossCorrelationLoss() #MSELoss()# 
@@ -51,8 +76,6 @@ class Warper:
 		self.loadMoving(moving_file)
 		self.loadTarget(target_file)
 		SZ = nn_input_size
-		size_moving = self.moving[0].shape
-		size_target = self.target[0].shape
 		moving_ds = Resize(spatial_size=[SZ, SZ, SZ],mode='trilinear')(self.moving).to(device)
 		target_ds = Resize(spatial_size=[SZ, SZ, SZ],mode='trilinear')(self.target).to(device)
 		moving_ds = ScaleIntensityRangePercentiles(
@@ -97,33 +120,30 @@ class Warper:
 		# write_nifti(torch.permute(ddf_ds[0],[1,2,3,0]),'ddf_ds.nii.gz',affine=target_ds.affine)
 		# jdet_ds = jacobian_determinant(ddf_ds[0])
 		# write_nifti(jdet_ds,'jdet_ds.nii.gz',affine=target_ds.affine)
+
 		print(dscolors.green+'computing deformation field'+dscolors.clear)
+		size_moving = self.moving[0].shape
+		size_target = self.target[0].shape
 		ddfx = Resize(spatial_size=size_target, mode='trilinear')(ddf_ds[:, 0])*(size_moving[0]/SZ)
 		ddfy = Resize(spatial_size=size_target, mode='trilinear')(ddf_ds[:, 1])*(size_moving[1]/SZ)
 		ddfz = Resize(spatial_size=size_target, mode='trilinear')(ddf_ds[:, 2])*(size_moving[2]/SZ)
-		ddf = torch.cat((ddfx, ddfy, ddfz), dim=0)
+		self.ddf = torch.cat((ddfx, ddfy, ddfz), dim=0)
 		del ddf_ds, ddfx, ddfy, ddfz
 		# Apply the warp
 		print(dscolors.green+'applying warp'+dscolors.clear)
-		image_movedo = apply_warp(ddf[None, ], self.moving[None, ], self.target[None, ])
+		image_movedo = apply_warp(self.ddf[None, ], self.moving[None, ], self.target[None, ])
 		print(dscolors.green+'saving warped output: '+dscolors.clear+output_file)
 		write_nifti(image_movedo[0, 0], output_file, affine=self.target.affine)
 		if ( ddf_file != "" ):
 			print(dscolors.green+'saving ddf: '+dscolors.clear+ddf_file)
-			write_nifti(torch.permute(ddf,[1,2,3,0]),ddf_file,affine=self.target.affine)
+			write_nifti(torch.permute(self.ddf,[1,2,3,0]),ddf_file,affine=self.target.affine)
 
-		# Apply the warp to labels
 		if ( label_file != "" and output_label_file != ""):
-			print(dscolors.green+'warping '+label_file+dscolors.clear)
-			print(dscolors.green+'saving warped labels: '+dscolors.clear+output_label_file+dscolors.clear)
-			label, meta = LoadImage()(label_file)
-			label = EnsureChannelFirst()(label)
-			warped_labels = apply_warp(ddf[None, ], label[None,], self.target[None, ], interp_mode='nearest')
-			write_nifti(warped_labels[0,0], output_label_file, affine=self.target.affine)
+			self.saveWarpedLabels(label_file,output_label_file)
 
 		if ( jacobian_determinant_file != ""):
-			jdet = jacobian_determinant(ddf)
-			write_nifti(jdet,'jdet.nii.gz',affine=self.target.affine)
+			jdet = jacobian_determinant(self.ddf)
+			write_nifti(jdet,jacobian_determinant_file,affine=self.target.affine)
 
 #####################
 def main():
