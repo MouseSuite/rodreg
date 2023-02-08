@@ -43,15 +43,14 @@ class Aligner:
 	def setLoss(self, loss):
 		self.loss=loss
 		if loss == 'mse':
-			image_loss = MSELoss()
+			self.image_loss = MSELoss()
 		elif loss == 'cc':
-			image_loss = LocalNormalizedCrossCorrelationLoss()
+			self.image_loss = LocalNormalizedCrossCorrelationLoss()
 		elif loss == 'mi':
-			image_loss = GlobalMutualInformationLoss()
+			self.image_loss = GlobalMutualInformationLoss()
 		else:
 			AssertionError
 			
-		set_determinism(42)		
 
 	def loadMoving(self, moving_file):
 		self.moving, self.moving_meta = LoadImage()(moving_file)

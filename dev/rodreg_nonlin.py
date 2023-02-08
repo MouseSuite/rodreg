@@ -15,20 +15,21 @@ from typing import List
 from monai.losses import BendingEnergyLoss
 from deform_losses import BendingEnergyLoss as myBendingEnergyLoss
 from networks import LocalNet2
+from tqdm import tqdm
 
 device = 'cuda'
 
 moving_file = 'linwarped_aba3.nii.gz'#'/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
 target_file = 'dev/test_case/F2_BC.bfc.nii.gz'  # '
-output_file = 'nonlin_warped_atlas1e-1.bfc.nii.gz'
+output_file = 'nonlin_warped_atlas1e-2.bfc.nii.gz'
 label_file = 'linwarped_aba3.nii.gz'
-output_label_file = 'linwarped_aba3-1.label.nii.gz'
+output_label_file = 'linwarped_aba3-2.label.nii.gz'
 
 # LocalNormalizedCrossCorrelationLoss() ##
 image_loss = LocalNormalizedCrossCorrelationLoss()# MSELoss() #GlobalMutualInformationLoss() #  #LocalNormalizedCrossCorrelationLoss() #MSELoss()# 
 regularization = myBendingEnergyLoss()
 
-max_epochs = 3000
+max_epochs = 12000
 nn_input_size = 64
 
 reg_penalty = .3
@@ -75,7 +76,7 @@ reg.train()
 
 optimizerR = torch.optim.Adam(reg.parameters(), lr=lr)
 
-for epoch in range(max_epochs):
+for epoch in tqdm(range(max_epochs)):
 
     optimizerR.zero_grad()
 
@@ -89,12 +90,12 @@ for epoch in range(max_epochs):
 
     vol_loss =  imgloss + regloss
 
-    print(f'imgloss:{imgloss},   regloss:{regloss}')
+    #print(f'imgloss:{imgloss},   regloss:{regloss}')
 
     vol_loss.backward()
     optimizerR.step()
 
-    print(f'epoch_loss:{vol_loss} for epoch:{epoch}')
+    #print(f'epoch_loss:{vol_loss} for epoch:{epoch}')
 
 
 
