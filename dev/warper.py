@@ -68,7 +68,7 @@ class Warper:
 		warped_labels = apply_warp(self.ddf[None, ], label[None,], self.target[None, ], interp_mode='nearest')
 		write_nifti(warped_labels[0,0], output_label_file, affine=self.target.affine)
 
-	def nonlinear_reg(self,target_file, moving_file, output_file, label_file, ddf_file, output_label_file, jacobian_determinant_file, loss, nn_input_size, lr, max_epochs, device):
+	def nonlinear_reg(self,target_file, moving_file, output_file, label_file, ddf_file, output_label_file, jacobian_determinant_file, loss, reg_penalty, nn_input_size, lr, max_epochs, device):
 
 		if loss == 'mse':
 			image_loss = MSELoss()
@@ -80,7 +80,6 @@ class Warper:
 			AssertionError
 
 		regularization = myBendingEnergyLoss()
-		reg_penalty = .3
 		#######################
 		set_determinism(42)
 		self.loadMoving(moving_file)
@@ -174,23 +173,24 @@ def main():
 	parser.add_argument('moving_file', type=str, help='moving file name')
 	parser.add_argument('fixed_file', type=str, help='fixed file name')
 	parser.add_argument('output_file', type=str, help='output file name')
-	parser.add_argument('--label-file', '--label', type=str, default='', help='input label file name')
-	parser.add_argument('--output-label-file', type=str, default='', help='output label file name')
-	parser.add_argument('-j','--jacobian', type=str, default='', help='output jacobian file name')
+	parser.add_argument('--label-file', '--label', type=str, help='input label file name')
+	parser.add_argument('--output-label-file', type=str, help='output label file name')
+	parser.add_argument('-j','--jacobian', type=str, help='output jacobian file name')
 	parser.add_argument('-ddf', '--ddf-file', type=str, default='', help='dense displacement field file name')
 	parser.add_argument('--nn_input_size', type=int, default=64, help='size of the neural network input (default: 64)')
 	parser.add_argument('--lr', type=float, default=.01, help='learning rate (default: 1e-4)')
 	parser.add_argument('-e', '--max-epochs', type=int, default=3000, help='maximum interations')
 	parser.add_argument('-d', '--device', type=str, default='cuda', help='device: cuda, cpu, etc.')
-	parser.add_argument('-l', '--loss', type=str, default='mse', help='loss function: mse, cc or mi')
-	# parser.add_argument('-p', '--prefix', type=str, help='output prefix')
+	parser.add_argument('-l', '--loss', type=str, default='cc', help='loss function: mse, cc or mi')
+	parser.add_argument('-r', '--reg-penalty', type=str, default=0.3, help='loss function: mse, cc or mi')
+
 	args = parser.parse_args()
 	warper=Warper()
 
 	warper.nonlinear_reg(target_file=args.fixed_file, moving_file=args.moving_file, output_file=args.output_file, ddf_file=args.ddf_file, 
 		label_file=args.label_file,
 		output_label_file=args.output_label_file, jacobian_determinant_file=args.jacobian,
-		loss=args.loss, nn_input_size=args.nn_input_size, lr=args.lr, max_epochs=args.max_epochs, device=args.device)
+		loss=args.loss, reg_penalty=args.reg_penalty, nn_input_size=args.nn_input_size, lr=args.lr, max_epochs=args.max_epochs, device=args.device)
 
 if __name__ == "__main__":
     main()
