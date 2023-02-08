@@ -157,7 +157,9 @@ class Warper:
 			label, meta = LoadImage()(label_file)
 			label = EnsureChannelFirst()(label)
 			warped_labels = apply_warp(self.ddf[None, ], label[None,], self.target[None, ], interp_mode='nearest')
-			write_nifti(warped_labels[0,0], output_label_file, affine=self.target.affine)
+			#write_nifti(warped_labels[0,0], output_label_file, affine=self.target.affine)
+			nib.save(nib.Nifti1Image(warped_labels[0,0].detach().cpu().numpy(), self.target.affine), output_label_file)
+
 
 		if jacobian_determinant_file is not None:
 			jdet = jacobian_determinant(self.ddf)
