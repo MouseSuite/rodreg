@@ -116,11 +116,11 @@ class Warper:
 			regloss = reg_penalty * regularization(ddf_ds)
 			vol_loss =  imgloss + regloss
 
-			print('imgloss:'+dscolors.blue+f'{imgloss}'+dscolors.clear
-						+', regloss:'+dscolors.blue+f'{regloss}'+dscolors.clear)#, end=' ')
+			print('imgloss:'+dscolors.blue+f'{imgloss:.4f}'+dscolors.clear
+						+', regloss:'+dscolors.blue+f'{regloss:.4f}'+dscolors.clear)#, end=' ')
 			vol_loss.backward()
 			optimizerR.step()
-			print('epoch_loss:'+dscolors.blue+f'{vol_loss}'+dscolors.clear
+			print('epoch_loss:'+dscolors.blue+f'{vol_loss:.4f}'+dscolors.clear
 					+' for epoch:'+dscolors.blue+f'{epoch}'+'/'+f'{max_epochs}'+dscolors.clear+'     ',end='\r\033[A')
 		
 		print('\n\n')
@@ -151,7 +151,7 @@ class Warper:
 			nib.save(nib.Nifti1Image(torch.permute(self.ddf,[1,2,3,0]).detach().cpu().numpy(), self.target.affine), ddf_file)
 
 		# Apply the warp to labels
-		if label_file is not None and output_label_file is not None):
+		if label_file is not None and output_label_file is not None:
 			print(dscolors.green+'warping '+label_file+dscolors.clear)
 			print(dscolors.green+'saving warped labels: '+dscolors.clear+output_label_file+dscolors.clear)
 			label, meta = LoadImage()(label_file)
