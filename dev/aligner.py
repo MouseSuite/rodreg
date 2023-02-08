@@ -92,7 +92,7 @@ class Aligner:
 			vol_loss = self.image_loss(image_moved, target_ds[None, ])
 			vol_loss.backward()
 			optimizerR.step()
-			print('epoch_loss:',dscolors.blue,f'{vol_loss}',dscolors.clear,
+			print('epoch_loss:',dscolors.blue,f'{vol_loss:.4f}',dscolors.clear,
 				' for epoch:', dscolors.green,f'{epoch}/{self.max_epochs}',dscolors.clear, '',end='\r')
             
 		size_moving = self.moving[0].shape

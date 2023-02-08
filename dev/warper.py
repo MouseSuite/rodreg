@@ -18,6 +18,7 @@ from monai.losses import BendingEnergyLoss
 from deform_losses import BendingEnergyLoss as myBendingEnergyLoss
 from networks import LocalNet2
 import argparse
+import nibabel as nib
 
 class dscolors:
 	red  	 = '\033[91m'
@@ -43,7 +44,16 @@ class Warper:
 		self.target = EnsureChannelFirst()(self.target)
 
 	def nonlinear_reg(self,target_file, moving_file, output_file, label_file, ddf_file, output_label_file, jacobian_determinant_file, loss, nn_input_size, lr, max_epochs, device):
-		image_loss = LocalNormalizedCrossCorrelationLoss()# MSELoss() #GlobalMutualInformationLoss() #  #LocalNormalizedCrossCorrelationLoss() #MSELoss()# 
+
+		if loss == 'mse':
+			image_loss = MSELoss()
+		elif loss == 'cc':
+			image_loss = LocalNormalizedCrossCorrelationLoss()
+		elif loss == 'mi':
+			image_loss = GlobalMutualInformationLoss()
+		else:
+			AssertionError
+
 		regularization = myBendingEnergyLoss()
 		reg_penalty = .3
 		#######################
@@ -107,23 +117,30 @@ class Warper:
 		print(dscolors.green+'applying warp'+dscolors.clear)
 		image_movedo = apply_warp(ddf[None, ], self.moving[None, ], self.target[None, ])
 		print(dscolors.green+'saving warped output: '+dscolors.clear+output_file)
-		write_nifti(image_movedo[0, 0], output_file, affine=self.target.affine)
-		if ( ddf_file != "" ):
+		#write_nifti(image_movedo[0, 0], output_file, affine=self.target.affine)
+		nib.save(nib.Nifti1Image(image_movedo[0, 0].detach().cpu().numpy(), self.target.affine), output_file)
+
+		if ddf_file is not None:
 			print(dscolors.green+'saving ddf: '+dscolors.clear+ddf_file)
-			write_nifti(torch.permute(ddf,[1,2,3,0]),ddf_file,affine=self.target.affine)
+			#write_nifti(torch.permute(ddf,[1,2,3,0]),ddf_file,affine=self.target.affine)
+			nib.save(nib.Nifti1Image(torch.permute(ddf,[1,2,3,0]).detach().cpu().numpy(), self.target.affine), ddf_file)
+
 
 		# Apply the warp to labels
-		if ( label_file != "" and output_label_file != ""):
+		if ( label_file is not None and output_label_file is not None):
 			print(dscolors.green+'warping '+label_file+dscolors.clear)
 			print(dscolors.green+'saving warped labels: '+dscolors.clear+output_label_file+dscolors.clear)
 			label, meta = LoadImage()(label_file)
 			label = EnsureChannelFirst()(label)
 			warped_labels = apply_warp(ddf[None, ], label[None,], self.target[None, ], interp_mode='nearest')
-			write_nifti(warped_labels[0,0], output_label_file, affine=self.target.affine)
+			#write_nifti(warped_labels[0,0], output_label_file, affine=self.target.affine)
+			nib.save(nib.Nifti1Image(image_movedo[0, 0].detach().cpu().numpy(), self.target.affine), output_file)
 
-		if ( jacobian_determinant_file != ""):
+
+		if (jacobian_determinant_file is not None):
 			jdet = jacobian_determinant(ddf)
-			write_nifti(jdet,'jdet.nii.gz',affine=self.target.affine)
+			#write_nifti(jdet,'jdet.nii.gz',affine=self.target.affine)
+			nib.save(nib.Nifti1Image(jdet.detach().cpu().numpy(), self.target.affine), jacobian_determinant_file)
 
 #####################
 def main():
@@ -147,7 +164,7 @@ def main():
 
 	warper.nonlinear_reg(target_file=args.fixed_file, moving_file=args.moving_file, output_file=args.output_file, ddf_file=args.ddf_file, 
 		label_file=args.label_file,
-		output_label_file=args.output_label_file, jacobian_determinant_file="",
+		output_label_file=args.output_label_file, jacobian_determinant_file=args.jacobian,
 		loss=args.loss, nn_input_size=args.nn_input_size, lr=args.lr, max_epochs=args.max_epochs, device=args.device)
 
 if __name__ == "__main__":
