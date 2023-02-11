@@ -115,13 +115,16 @@ class Warper:
 			regloss = reg_penalty * regularization(ddf_ds)
 			vol_loss =  imgloss + regloss
 
-			print('imgloss:'+dscolors.blue+f'{imgloss:.4f}'+dscolors.clear
-						+', regloss:'+dscolors.blue+f'{regloss:.4f}'+dscolors.clear)#, end=' ')
+			# print('imgloss:'+dscolors.blue+f'{imgloss:.4f}'+dscolors.clear
+			# 			+', regloss:'+dscolors.blue+f'{regloss:.4f}'+dscolors.clear)#, end=' ')
 			vol_loss.backward()
 			optimizerR.step()
-			print('epoch_loss:'+dscolors.blue+f'{vol_loss:.4f}'+dscolors.clear
-					+' for epoch:'+dscolors.blue+f'{epoch}'+'/'+f'{max_epochs}'+dscolors.clear+'     ',end='\r\033[A')
+			# print('epoch_loss:'+dscolors.blue+f'{vol_loss:.4f}'+dscolors.clear
+			# 		+' for epoch:'+dscolors.blue+f'{epoch}'+'/'+f'{max_epochs}'+dscolors.clear+'     ',end='\r\033[A')
+			print('epoch:', dscolors.green,f'{epoch}/{max_epochs}',dscolors.clear, '',end='\r')
 		
+		print('finished', dscolors.green,f'{max_epochs}',dscolors.clear, 'epochs')
+
 		print('\n\n')
 		# write_nifti(image_moved[0, 0], 'moved_ds.nii.gz', affine=target_ds.affine)
 		# write_nifti(target_ds[0], 'target_ds.nii.gz', affine=target_ds.affine)
