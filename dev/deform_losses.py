@@ -44,6 +44,72 @@ def spatial_gradient(x: torch.Tensor, dim: int) -> torch.Tensor:
     return (x[slicing_s] - x[slicing_e])# / 2.0
 
 
+
+class GradEnergyLoss(_Loss):
+    """
+    Calculate the Grad energy based on first-order differentiation of pred using forward finite difference.
+
+    Adapted from:
+        DeepReg (https://github.com/DeepRegNet/DeepReg)
+    """
+
+    def __init__(self, normalize: bool = False, reduction: Union[LossReduction, str] = LossReduction.MEAN) -> None:
+        """
+        Args:
+            normalize:
+                Whether to divide out spatial sizes in order to make the computation roughly
+                invariant to image scale (i.e. vector field sampling resolution). Defaults to False.
+            reduction: {``"none"``, ``"mean"``, ``"sum"``}
+                Specifies the reduction to apply to the output. Defaults to ``"mean"``.
+
+                - ``"none"``: no reduction will be applied.
+                - ``"mean"``: the sum of the output will be divided by the number of elements in the output.
+                - ``"sum"``: the output will be summed.
+        """
+        super().__init__(reduction=LossReduction(reduction).value)
+        self.normalize = normalize
+
+    def forward(self, pred: torch.Tensor) -> torch.Tensor:
+        """
+        Args:
+            pred: the shape should be BCH(WD)
+
+        Raises:
+            ValueError: When ``self.reduction`` is not one of ["mean", "sum", "none"].
+
+        """
+        if pred.ndim not in [3, 4, 5]:
+            raise ValueError(f"Expecting 3-d, 4-d or 5-d pred, instead got pred of shape {pred.shape}")
+        for i in range(pred.ndim - 2):
+            if pred.shape[-i - 1] <= 4:
+                raise ValueError(f"All spatial dimensions must be > 4, got spatial dimensions {pred.shape[2:]}")
+        if pred.shape[1] != pred.ndim - 2:
+            raise ValueError(
+                f"Number of vector components, {pred.shape[1]}, does not match number of spatial dimensions, {pred.ndim-2}"
+            )
+
+        # first order gradient
+        first_order_gradient = [spatial_gradient(pred, dim) for dim in range(2, pred.ndim)]
+
+        # spatial dimensions in a shape suited for broadcasting below
+        if self.normalize:
+            spatial_dims = torch.tensor(pred.shape, device=pred.device)[2:].reshape((1, -1) + (pred.ndim - 2) * (1,))
+
+        energy = 0
+
+        for dim in range(len(first_order_gradient)):
+          energy += first_order_gradient[dim] ** 2 
+
+        if self.reduction == LossReduction.MEAN.value:
+            energy = torch.mean(energy)  # the batch and channel average
+        elif self.reduction == LossReduction.SUM.value:
+            energy = torch.sum(energy)  # sum over the batch and channel dims
+        elif self.reduction != LossReduction.NONE.value:
+            raise ValueError(f'Unsupported reduction: {self.reduction}, available options are ["mean", "sum", "none"].')
+
+        return energy
+
+
 class BendingEnergyLoss(_Loss):
     """
     Calculate the bending energy based on second-order differentiation of pred using central finite difference.

@@ -1,7 +1,7 @@
 from monai.utils import set_determinism
 from monai.networks.nets import GlobalNet, LocalNet, RegUNet, unet
 from monai.config import USE_COMPILED
-from monai.networks.blocks import Warp
+from monai.networks.blocks import Warp, DVF2DDF
 import torch
 from torch.nn import MSELoss
 from monai.transforms import LoadImage, Resize, EnsureChannelFirst, ScaleIntensityRangePercentiles
@@ -13,7 +13,7 @@ from torch.nn.functional import grid_sample
 from warp_utils import get_grid, apply_warp, jacobian_determinant, jacobian_determinant_torch
 from typing import List
 from monai.losses import BendingEnergyLoss
-from deform_losses import BendingEnergyLoss as myBendingEnergyLoss
+from deform_losses import GradEnergyLoss 
 from networks import LocalNet2
 from tqdm import tqdm
 
@@ -29,14 +29,14 @@ output_label_file = 'linwarped_aba3-2.label.nii.gz'
 
 # LocalNormalizedCrossCorrelationLoss() ##
 image_loss = MSELoss() #GlobalMutualInformationLoss() #  #LocalNormalizedCrossCorrelationLoss() #MSELoss()# 
-regularization = myBendingEnergyLoss()
+regularization = GradEnergyLoss()
 
-max_epochs = 1200
-nn_input_size = 64
+max_epochs = 100
+nn_input_size = 128
 
-reg_penalty = .01
-jac_penalty = 10/(nn_input_size**3)
-lr = .01
+reg_penalty = 1000
+jac_penalty = 0#1/(nn_input_size**3)
+lr = .1
 
 #######################
 set_determinism(42)
@@ -82,6 +82,9 @@ if USE_COMPILED:
 else:
     warp_layer = Warp("bilinear", padding_mode="zeros").to(device)
 
+
+dvf_to_ddf = DVF2DDF()
+
 reg.train()
 
 
@@ -93,18 +96,17 @@ for epoch in tqdm(range(max_epochs)):
 
     input_data = torch.cat((moving_ds, target_ds), dim=0)
     input_data = input_data[None, ]
-    ddf_ds = reg(input_data)
+    dvf_ds = reg(input_data)
+    ddf_ds = dvf_to_ddf(dvf_ds)
     image_moved = warp_layer(moving_ds[None, ], ddf_ds)
 
     imgloss = image_loss(image_moved, target_ds[None, ])
     regloss = reg_penalty * regularization(ddf_ds)
 
-    jdet = jacobian_determinant_torch(ddf_ds[0])
+    #jdet = jacobian_determinant_torch(ddf_ds[0])
+    #jdet = torch.maximum(jdet,torch.tensor(1e-16))
 
-    if epoch <300:
-        vol_loss =  imgloss + regloss 
-    else:
-        vol_loss =  imgloss + regloss + jac_penalty*torch.sum((jdet-1)**2)
+    vol_loss = imgloss + regloss # + jac_penalty*torch.sum(torch.log(jdet)**2)
 
     #print(f'imgloss:{imgloss},   regloss:{regloss}')
 
@@ -114,6 +116,8 @@ for epoch in tqdm(range(max_epochs)):
     print(f'epoch_loss:{vol_loss} for epoch:{epoch}')
 
 
+
+jdet = jacobian_determinant_torch(ddf_ds[0])
 
 write_nifti(image_moved[0, 0], 'moved_ds.nii.gz', affine=target_ds.affine)
 write_nifti(target_ds[0], 'target_ds.nii.gz', affine=target_ds.affine)

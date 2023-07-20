@@ -19,8 +19,8 @@ from tqdm import tqdm
 
 device = 'cuda'
 
-moving_file = 'linwarped_aba3.nii.gz'#'/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
-target_file = 'dev/test_case/F2_BC.bfc.nii.gz'  # '
+moving_file = '/home/ajoshi/projects/rodreg/linwarped_aba3.nii.gz'#'/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz'
+target_file = 'test_case/F2_BC.bfc.nii.gz'  # '
 output_file = 'nonlin_warped_atlas1e-2.bfc.nii.gz'
 label_file = 'linwarped_aba3.nii.gz'
 output_label_file = 'linwarped_aba3-2.label.nii.gz'
@@ -29,10 +29,10 @@ output_label_file = 'linwarped_aba3-2.label.nii.gz'
 image_loss = LocalNormalizedCrossCorrelationLoss()# MSELoss() #GlobalMutualInformationLoss() #  #LocalNormalizedCrossCorrelationLoss() #MSELoss()# 
 regularization = myBendingEnergyLoss()
 
-max_epochs = 12000
+max_epochs = 1200
 nn_input_size = 64
 
-reg_penalty = .3
+reg_penalty = 1
 lr = .01
 
 #######################
