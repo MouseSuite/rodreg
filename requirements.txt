@@ -1,4 +1,6 @@
 nilearn
 monai
 SimpleITK
+jupyterlab
+matplotlib
 
