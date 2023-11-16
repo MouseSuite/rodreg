@@ -49,11 +49,11 @@ class Aligner:
             raise AssertionError('Invalid Loss')
 
     def loadMoving(self, moving_file):
-        self.moving, self.moving_meta = LoadImage()(moving_file)
+        self.moving, self.moving_meta = LoadImage(image_only=False)(moving_file)
         self.moving = EnsureChannelFirst()(self.moving)
 
     def loadTarget(self, fixed_file):
-        self.target, self.moving_meta = LoadImage()(fixed_file)
+        self.target, self.moving_meta = LoadImage(image_only=False)(fixed_file)
         self.target = EnsureChannelFirst()(self.target)
 
     def performAffine(self):
