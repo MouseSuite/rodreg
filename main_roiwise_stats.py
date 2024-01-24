@@ -3,7 +3,7 @@ import pandas as pd
 import xml.etree.ElementTree as ET
 import numpy as np
 
-def build_dict_rois(xmlfile):
+def read_label_xml(xmlfile):
     # Read XML for brain atlas
     xml_root = ET.parse(xmlfile).getroot()
 
@@ -18,12 +18,6 @@ def build_dict_rois(xmlfile):
                 for i in range(len(roi_ids))}
 
     return roi_dict
-
-
-def read_labels_file(labels_file):
-    with open(labels_file, 'r') as file:
-        labels = [line.strip().split() for line in file.readlines()]
-    return {int(label[0]): label[1] for label in labels}
 
 def calculate_roi_volumes(label_file, labels_dict):
     img = nib.load(label_file)
@@ -47,6 +41,6 @@ nifti_label_file = '/deneb_disk/RodentTools/roiwise_stats_data/mouse_invivo_outp
 labels_xml_file = '/deneb_disk/RodentTools/data/MSA100/MSA100/MSA.xml'
 output_csv_file = 'output_file.csv'
 
-labels_dict = build_dict_rois(labels_xml_file)
+labels_dict = read_label_xml(labels_xml_file)
 roi_volumes = calculate_roi_volumes(nifti_label_file, labels_dict)
 save_to_csv(output_csv_file, roi_volumes)
