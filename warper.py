@@ -104,6 +104,7 @@ class Warper:
         target_mask=None,
         label_file=None,
         ddf_file=None,
+        inv_ddf_file=None,
         output_label_file=None,
         jacobian_determinant_file=None,
         loss="cc",
@@ -175,6 +176,8 @@ class Warper:
             input_data = input_data[None,]
             dvf_ds = reg(input_data)
             ddf_ds = dvf_to_ddf(dvf_ds)
+            inv_ddf_ds = dvf_to_ddf(-dvf_ds)
+
             image_moved = warp_layer(moving_ds[None,], ddf_ds)
             
             if target_mask is not None:
@@ -226,6 +229,18 @@ class Warper:
         )
         self.ddf = torch.cat((ddfx, ddfy, ddfz), dim=0)
         del ddf_ds, ddfx, ddfy, ddfz
+
+        print(dscolors.green + "computing inverse deformation field" + dscolors.clear)
+        size_moving = self.moving[0].shape
+        size_target = self.target[0].shape
+        ddfx = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 0]) * (SZ / size_moving[0])
+        ddfy = Resize(spatial_size=size_target, mode="trilinear")(inv_ddf_ds[:, 1]) * (SZ / size_moving[1])
+        ddfz = Resize(spatial_size=size_target, mode="trilinear")(inv_ddf_ds[:, 2]) * (SZ / size_moving[2])
+        self.inv_ddf = torch.cat((ddfx, ddfy, ddfz), dim=0)
+        del inv_ddf_ds, ddfx, ddfy, ddfz
+
+
+
         # Apply the warp
         print(dscolors.green + "applying warp" + dscolors.clear)
         image_movedo = apply_warp(
@@ -248,6 +263,16 @@ class Warper:
                     self.target.affine,
                 ),
                 ddf_file,
+            )
+
+        if inv_ddf_file is not None:
+            print(dscolors.green + "saving inv_ddf: " + dscolors.clear + inv_ddf_file)
+            nib.save(
+                nib.Nifti1Image(
+                    torch.permute(self.inv_ddf, [1, 2, 3, 0]).detach().cpu().numpy(),
+                    self.moving.affine,
+                ),
+                inv_ddf_file,
             )
 
         # Apply the warp to labels
@@ -303,6 +328,14 @@ def main():
         help="dense displacement field file name",
     )
     parser.add_argument(
+        "-iddf",
+        "--inv-ddf-file",
+        type=str,
+        default="",
+        help="inverse dense displacement field file name",
+    )
+
+    parser.add_argument(
         "--nn_input_size",
         type=int,
         default=64,
@@ -337,6 +370,7 @@ def main():
         moving_file=args.moving_file,
         output_file=args.output_file,
         ddf_file=args.ddf_file,
+        inv_ddf_file=args.inv_ddf_file,
         label_file=args.label_file,
         output_label_file=args.output_label_file,
         jacobian_determinant_file=args.jacobian,
