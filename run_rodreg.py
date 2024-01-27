@@ -21,8 +21,8 @@ from warper import Warper
 
 def main():
     parser = argparse.ArgumentParser(description='Runs rodreg full registration pipeline.')
-    parser.add_argument('-i', type=str, help='Input subject file.', required=True)
-    parser.add_argument('-r', type=str, help='Reference image file prefix.', required=True)
+    parser.add_argument('-s', type=str, help='Input subject file.', required=True)
+    parser.add_argument('-a', type=str, help='Reference image file prefix.', required=True)
     parser.add_argument('--o', type=str, help='Output file name (non-linearly warped image).', required=True)
     parser.add_argument('--l', type=str, help='Output label file name.', required=False)
     # parser.add_argument('--j', type=str, help='Output jacobian file name.', required=False)
@@ -45,9 +45,9 @@ def main():
 
     device = args.d
 
-    inputT2 = args.i
-    atlas_brain = args.r + '.brain.nii.gz'
-    atlas_label = args.r + '.label.nii.gz'
+    inputT2 = args.s
+    atlas_brain = args.a + '.brain.nii.gz'
+    atlas_label = args.a + '.label.nii.gz'
 
     if not os.path.exists(inputT2):
         print('ERROR: file', inputT2, 'does not exist.')
