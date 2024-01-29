@@ -54,3 +54,4 @@ Thumbs.db
 .ipynb_checkpoints/*
 .ipynb_checkpoints
 .vscode/settings.json
+output_file.csv
