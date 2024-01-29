@@ -32,7 +32,7 @@ def main():
     parser.add_argument('--nonlinloss', type=str, help='Type of loss function for non-linear registration.', 
                         default = 'cc', choices=['mse', 'cc', 'mi'], required=False)
     parser.add_argument(
-        "--le", type=int, default=1500, help="Maximum interations for linear registration"
+        "--le", type=int, default=5000, help="Maximum interations for linear registration"
     )
     parser.add_argument(
         "--ne", type=int, default=5000, help="Maximum interations for non-linear registration"
