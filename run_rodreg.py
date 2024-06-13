@@ -77,6 +77,9 @@ def main():
     centered_atlas_nonlinreg_labels = subbase+".label.nii.gz"
     jac_det_file = subbase+".warp-Jacobian.nii.gz"
     logjac_det_file = subbase+".warp-logJacobian.nii.gz"
+    inv_jac_det_file = subbase+".inv-warp-Jacobian.nii.gz"
+    loginv_jac_det_file = subbase+".inv-warp-logJacobian.nii.gz"
+
 
     if args.l:
         centered_atlas_nonlinreg_labels = args.l
@@ -150,6 +153,7 @@ def main():
         max_epochs=args.ne,
         loss=args.nonlinloss,
         jacobian_determinant_file=jac_det_file,
+        inv_jacobian_determinant_file=inv_jac_det_file,
         device=device,
     )
 
@@ -174,6 +178,13 @@ def main():
     recon = nib.Nifti1Image(logdata, jacdet.affine)
     nib.save(recon, logjac_det_file)
     
+    jacdet_inv, meta = LoadImage(image_only=False)(inv_jac_det_file)
+    logdata_inv = np.log(jacdet_inv)
+    
+    recon = nib.Nifti1Image(logdata_inv, jacdet_inv.affine)
+    nib.save(recon, logjac_det_file)
+
+
 
 if __name__ == "__main__":
     main()

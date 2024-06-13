@@ -107,6 +107,7 @@ class Warper:
         inv_ddf_file=None,
         output_label_file=None,
         jacobian_determinant_file=None,
+        inv_jacobian_determinant_file=None,
         loss="cc",
         reg_penalty=0.3,
         nn_input_size=64,
@@ -305,6 +306,12 @@ class Warper:
                 nib.Nifti1Image(jdet, self.target.affine), jacobian_determinant_file
             )
 
+        if inv_jacobian_determinant_file is not None:
+            ijdet = jacobian_determinant(self.inv_ddf)
+            # write_nifti(jdet,'jdet.nii.gz',affine=self.target.affine)
+            nib.save(
+                nib.Nifti1Image(ijdet, self.target.affine), inv_jacobian_determinant_file
+            )
 
 #####################
 def main():
