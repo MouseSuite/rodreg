@@ -310,7 +310,7 @@ class Warper:
             ijdet = jacobian_determinant(self.inv_ddf)
             # write_nifti(jdet,'jdet.nii.gz',affine=self.target.affine)
             nib.save(
-                nib.Nifti1Image(ijdet, self.target.affine), inv_jacobian_determinant_file
+                nib.Nifti1Image(ijdet, self.moving.affine), inv_jacobian_determinant_file
             )
 
 #####################
