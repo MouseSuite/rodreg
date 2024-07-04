@@ -73,7 +73,9 @@ class Warper:
         if target_mask is None:
             self.target_mask = None
         else:
-            self.target_mask, self.target_mask_meta = LoadImage(image_only=False)(target_mask)
+            self.target_mask, self.target_mask_meta = LoadImage(image_only=False)(
+                target_mask
+            )
             self.target_mask = self.target_mask > 0.5
             self.target_mask.type(torch.DoubleTensor)
             self.target_mask = EnsureChannelFirst()(self.target_mask)
@@ -92,9 +94,13 @@ class Warper:
         warped_labels = apply_warp(
             self.ddf[None,], label[None,], self.target[None,], interp_mode="nearest"
         )
-        #write_nifti(warped_labels[0, 0], output_label_file, affine=self.target.affine)
-        nib.save(nib.Nifti1Image(warped_labels[0, 0].detach().cpu().numpy(), self.target.affine), output_label_file,
-            )
+        # write_nifti(warped_labels[0, 0], output_label_file, affine=self.target.affine)
+        nib.save(
+            nib.Nifti1Image(
+                warped_labels[0, 0].detach().cpu().numpy(), self.target.affine
+            ),
+            output_label_file,
+        )
 
     def nonlinear_reg(
         self,
@@ -140,8 +146,9 @@ class Warper:
         )
 
         if target_mask is not None:
-            target_mask_ds = Resize(spatial_size=[SZ, SZ, SZ], mode="trilinear")(self.target_mask).to(device)
-
+            target_mask_ds = Resize(spatial_size=[SZ, SZ, SZ], mode="trilinear")(
+                self.target_mask
+            ).to(device)
 
         moving_ds = ScaleIntensityRangePercentiles(
             lower=0.5, upper=99.5, b_min=0.0, b_max=10, clip=True
@@ -170,7 +177,7 @@ class Warper:
 
         if target_mask is not None:
             target_ds *= target_mask_ds
-        
+
         for epoch in range(max_epochs):
             optimizerR.zero_grad()
             input_data = torch.cat((moving_ds, target_ds), dim=0)
@@ -180,7 +187,7 @@ class Warper:
             inv_ddf_ds = dvf_to_ddf(-dvf_ds)
 
             image_moved = warp_layer(moving_ds[None,], ddf_ds)
-            
+
             if target_mask is not None:
                 image_moved *= target_mask_ds
 
@@ -234,13 +241,17 @@ class Warper:
         print(dscolors.green + "computing inverse deformation field" + dscolors.clear)
         size_moving = self.moving[0].shape
         size_target = self.target[0].shape
-        ddfx = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 0]) * (SZ / size_moving[0])
-        ddfy = Resize(spatial_size=size_target, mode="trilinear")(inv_ddf_ds[:, 1]) * (SZ / size_moving[1])
-        ddfz = Resize(spatial_size=size_target, mode="trilinear")(inv_ddf_ds[:, 2]) * (SZ / size_moving[2])
+        ddfx = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 0]) * (
+            size_target[0] / SZ
+        )
+        ddfy = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 1]) * (
+            size_target[1] / SZ
+        )
+        ddfz = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 2]) * (
+            size_target[2] / SZ
+        )
         self.inv_ddf = torch.cat((ddfx, ddfy, ddfz), dim=0)
         del inv_ddf_ds, ddfx, ddfy, ddfz
-
-
 
         # Apply the warp
         print(dscolors.green + "applying warp" + dscolors.clear)
@@ -310,8 +321,10 @@ class Warper:
             ijdet = jacobian_determinant(self.inv_ddf)
             # write_nifti(jdet,'jdet.nii.gz',affine=self.target.affine)
             nib.save(
-                nib.Nifti1Image(ijdet, self.moving.affine), inv_jacobian_determinant_file
+                nib.Nifti1Image(ijdet, self.moving.affine),
+                inv_jacobian_determinant_file,
             )
+
 
 #####################
 def main():
