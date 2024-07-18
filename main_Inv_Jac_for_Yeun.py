@@ -69,7 +69,7 @@ jacobian(composed_ddf_file, jacobian_full_det_file)
 
 
 # Invert the composed deformation field this takes about 15 min
-#invertdeformationfield(composed_ddf_file, inv_composed_ddf_file)
+invertdeformationfield(composed_ddf_file, inv_composed_ddf_file)
 applydeformation(sub_bse_t2, inv_composed_ddf_file, full_deformed_subject) # subject moved to atlas space (without centering)
 
 # apply centering
