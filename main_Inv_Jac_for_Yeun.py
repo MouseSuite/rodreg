@@ -14,8 +14,9 @@ from invertdeformationfield import invertdeformationfield
 from jacobian import jacobian
 
 subbase = "/deneb_disk/RodentTools/data/test4/29408.native"#"/deneb_disk/RodentTools/data/test_case/M2_LCRP"
+subbase="/deneb_disk/RodentTools/data/test_case/M2_LCRP"
 
-sub_bse_t2 = subbase+".bse.nii.gz"
+sub_bse_t2 = subbase+".bfc.nii.gz"
 
 atlas_bse_t2 = "/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.bfc.nii.gz"
 atlas_labels = "/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.label.nii.gz"
