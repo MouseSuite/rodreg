@@ -11,11 +11,7 @@ from warper import Warper
 from composedeformations import composedeformation
 from applydeformation import applydeformation
 
-
-# %matplotlib notebook
-# import gui
-subbase = "/deneb_disk/RodentTools/data/test4/29408.native"#
-"/deneb_disk/RodentTools/data/test_case/M2_LCRP"
+subbase = "/deneb_disk/RodentTools/data/test4/29408.native"#"/deneb_disk/RodentTools/data/test_case/M2_LCRP"
 
 sub_bse_t2 = subbase+".bse.nii.gz"
 
@@ -24,11 +20,11 @@ atlas_labels = "/deneb_disk/RodentTools/data/MSA100/MSA100/MSA100.label.nii.gz"
 
 centered_atlas = subbase+".atlas.cent.nii.gz"
 centered_atlas_labels = subbase+".atlas.cent.label.nii.gz"
-
+cent_transform_file = subbase+".cent.reg.tfm"
+inv_cent_transform_file = subbase+".cent.reg.inv.tfm"
 centered_atlas_linreg = subbase+".atlas.lin.nii.gz"
 centered_atlas_linreg_labels = subbase+".atlas.lin.label.nii.gz"
 lin_reg_map_file = subbase+".lin_ddf.map.nii.gz"
-
 
 nonlin_reg_map_file = subbase+".nonlin_ddf.map.nii.gz"
 inv_nonlin_reg_map_file = subbase+".inv.nonlin_ddf.map.nii.gz"
@@ -36,17 +32,26 @@ centered_atlas_nonlinreg = subbase+".atlas.nonlin.nii.gz"
 centered_atlas_nonlinreg_labels = subbase+".atlas.nonlin.label.nii.gz"
 jac_det_file = subbase+".jacobian_det.nii.gz"
 inv_jac_det_file = subbase+".inv.jacobian_det.nii.gz"
-composed_ddf_file = subbase+".composed_ddf.map.nii.gz"
-composed_jac_det_file = subbase+".composed_jacobian_det.nii.gz"
-deformed_atlas = subbase+".deformed_atlas.nii.gz"
 
-lin_reg_map_file = subbase+".lin_ddf.map.nii.gz"
-lin_reg_cent_map_file = subbase+".lin_ddf.cent.map.nii.gz"
+composed_ddf_file = subbase+".composed_ddf.map.nii.gz"
+
+lin_deformed_atlas = subbase+".atlas.lin.deformed.nii.gz"
+full_deformed_atlas = subbase+".atlas.full.deformed.nii.gz"
 
 composedeformation(nonlin_reg_map_file, lin_reg_map_file, composed_ddf_file)
 
 
-applydeformation(atlas_bse_t2, lin_reg_cent_map_file, deformed_atlas)
 
-applydeformation(atlas_bse_t2, lin_reg_map_file, deformed_atlas)
+fixed_image = sitk.ReadImage(sub_bse_t2, sitk.sitkFloat32)
+moving_image = sitk.ReadImage(atlas_bse_t2, sitk.sitkFloat32)
+cent_transform = sitk.ReadTransform(cent_transform_file)
+moved_image = sitk.Resample(moving_image, fixed_image, cent_transform)
+sitk.WriteImage(moved_image, centered_atlas)
 
+
+
+
+applydeformation(centered_atlas, lin_reg_map_file, lin_deformed_atlas)
+
+
+applydeformation(centered_atlas, composed_ddf_file, full_deformed_atlas)
