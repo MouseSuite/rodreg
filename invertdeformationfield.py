@@ -38,9 +38,13 @@ def invert_deformation_field(def_field, affine):
     inv_def = np.zeros_like(def_field).reshape(-1, 3)
     
     # Perform scattered interpolation for each displacement component
+    inv_def = griddata(displaced_coords, real_coords.reshape(-1, 3), real_coords, method='linear', fill_value=0)
+    inv_def = inv_def.reshape(real_coords.shape)
+    """
     for i in tqdm(range(3)):
         inv_def[:, i] = griddata(displaced_coords, real_coords[:, i], real_coords, method='linear', fill_value=0)
     
+    """
     inv_def -= real_coords
     
     return inv_def.reshape(def_field.shape) / voxel_dim
