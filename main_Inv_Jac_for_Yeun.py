@@ -51,10 +51,9 @@ inv_jacobian_full_det_file = subbase+".inv.jacobian_det.nii.gz"
 inv_jacobian_full_atlas_det_file = subbase+".inv.jacobian_atlas_det.nii.gz"
 
 
-""" 
 composedeformation(nonlin_reg_map_file, lin_reg_map_file, composed_ddf_file)
 
-
+#composed_ddf_file is the map that is combination of linear and non-linear deformation fields. Th ecentering is to be applied separately
 
 fixed_image = sitk.ReadImage(sub_bse_t2, sitk.sitkFloat32)
 moving_image = sitk.ReadImage(atlas_bse_t2, sitk.sitkFloat32)
@@ -63,16 +62,17 @@ moved_image = sitk.Resample(moving_image, fixed_image, cent_transform)
 sitk.WriteImage(moved_image, centered_atlas)
 
 applydeformation(centered_atlas, composed_ddf_file, full_deformed_atlas)
- """
+
+# Jacobian of the forward field
 jacobian(composed_ddf_file, jacobian_full_det_file)
 
 
-# Invert the composed deformation field this takes about 25 min
+
+# Invert the composed deformation field this takes about 15 min
 #invertdeformationfield(composed_ddf_file, inv_composed_ddf_file)
+applydeformation(sub_bse_t2, inv_composed_ddf_file, full_deformed_subject) # subject moved to atlas space (without centering)
 
-
-applydeformation(sub_bse_t2, inv_composed_ddf_file, full_deformed_subject)
-
+# apply centering
 moving_image = sitk.ReadImage(full_deformed_subject, sitk.sitkFloat32)
 fixed_image = sitk.ReadImage(atlas_bse_t2, sitk.sitkFloat32)
 inv_cent_transform = sitk.ReadTransform(inv_cent_transform_file)
@@ -80,10 +80,13 @@ moved_image = sitk.Resample(moving_image, fixed_image, inv_cent_transform)
 sitk.WriteImage(moved_image, subject_deformed2_atlas)
 
 
+# Calculate jacobian of the deformation field
 jacobian(inv_composed_ddf_file, inv_jacobian_full_det_file)
 
+# apply centering to the Jacobian
 moving_image = sitk.ReadImage(inv_jacobian_full_det_file, sitk.sitkFloat32)
 fixed_image = sitk.ReadImage(atlas_bse_t2, sitk.sitkFloat32)
 inv_cent_transform = sitk.ReadTransform(inv_cent_transform_file)
 moved_image = sitk.Resample(moving_image, fixed_image, inv_cent_transform)
 sitk.WriteImage(moved_image, inv_jacobian_full_atlas_det_file)
+

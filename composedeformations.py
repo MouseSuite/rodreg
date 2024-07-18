@@ -28,13 +28,16 @@ def compose_deformation_fields(def1, def2, affine1, affine2):
     # Create a meshgrid of coordinates
     coords = np.meshgrid(np.arange(shape[0]), np.arange(shape[1]), np.arange(shape[2]), indexing='ij')
     coords = np.stack(coords, axis=-1).astype(np.float64)
-    
+
+    def1 = def1 * voxel_dim1
+    def2 = def2 * voxel_dim2
+
     # Apply voxel dimensions to get real-world coordinates
     real_coords1 = coords * voxel_dim1
     real_coords2 = coords * voxel_dim2
     
     # Apply the first deformation field
-    new_real_coords1 = real_coords1 + def1*voxel_dim1
+    new_real_coords1 = real_coords1 + def1
     
     # Convert real-world coordinates back to voxel coordinates for def2
     new_voxel_coords2 = new_real_coords1 / voxel_dim2
@@ -43,10 +46,10 @@ def compose_deformation_fields(def1, def2, affine1, affine2):
     composed_def = np.zeros_like(def1)
     for i in range(3):
         #composed_def[..., i] = map_coordinates(def2[..., i]*voxel_dim2[i], new_voxel_coords2[..., [2, 1, 0]].transpose(3, 0, 1, 2), order=1)
-        composed_def[..., i] = map_coordinates(def2[..., i]*voxel_dim2[i], new_voxel_coords2.transpose(3, 0, 1, 2), order=1)
+        composed_def[..., i] = map_coordinates(def2[..., i], new_voxel_coords2.transpose(3, 0, 1, 2), order=1)
 
     # Add the interpolated displacement to the new voxel coordinates
-    composed_def += def1*voxel_dim1
+    composed_def += def1
     
     return composed_def/voxel_dim1
 
