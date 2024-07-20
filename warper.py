@@ -124,7 +124,7 @@ class Warper:
         if loss == "mse":
             image_loss = MSELoss()
         elif loss == "cc":
-            image_loss = LocalNormalizedCrossCorrelationLoss()
+            image_loss = LocalNormalizedCrossCorrelationLoss(kernel_size=7)
         elif loss == "mi":
             image_loss = GlobalMutualInformationLoss()
         else:

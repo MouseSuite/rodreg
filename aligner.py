@@ -42,7 +42,7 @@ class Aligner:
         if loss == 'mse':
             self.image_loss = MSELoss()
         elif loss == 'cc':
-            self.image_loss = LocalNormalizedCrossCorrelationLoss()
+            self.image_loss = LocalNormalizedCrossCorrelationLoss(kernel_size=7)
         elif loss == 'mi':
             self.image_loss = GlobalMutualInformationLoss()
         else:
