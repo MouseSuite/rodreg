@@ -50,11 +50,11 @@ class Aligner:
 
     def loadMoving(self, moving_file):
         self.moving, self.moving_meta = LoadImage(image_only=False)(moving_file)
-        self.moving = EnsureChannelFirst()(self.moving)
+        self.moving = EnsureChannelFirst()(self.moving).to('cpu')
 
     def loadTarget(self, fixed_file):
         self.target, self.moving_meta = LoadImage(image_only=False)(fixed_file)
-        self.target = EnsureChannelFirst()(self.target)
+        self.target = EnsureChannelFirst()(self.target).to('cpu')
 
     def performAffine(self):
         SZ = self.nn_input_size
@@ -97,13 +97,13 @@ class Aligner:
 
         size_moving = self.moving[0].shape
         size_target = self.target[0].shape
-        ddfx = Resize(spatial_size=size_target, mode='trilinear')(
-            ddf_ds[:, 0])*(size_moving[0]/SZ)
-        ddfy = Resize(spatial_size=size_target, mode='trilinear')(
-            ddf_ds[:, 1])*(size_moving[1]/SZ)
-        ddfz = Resize(spatial_size=size_target, mode='trilinear')(
-            ddf_ds[:, 2])*(size_moving[2]/SZ)
-        self.ddf = torch.cat((ddfx, ddfy, ddfz), dim=0)
+        ddfx = (Resize(spatial_size=size_target, mode='trilinear')(
+            ddf_ds[:, 0])*(size_moving[0]/SZ)).to('cpu')
+        ddfy = (Resize(spatial_size=size_target, mode='trilinear')(
+            ddf_ds[:, 1])*(size_moving[1]/SZ)).to('cpu')
+        ddfz = (Resize(spatial_size=size_target, mode='trilinear')(
+            ddf_ds[:, 2])*(size_moving[2]/SZ)).to('cpu')
+        self.ddf = torch.cat((ddfx, ddfy, ddfz), dim=0).to('cpu')
         del ddf_ds, ddfx, ddfy, ddfz
 
     def saveDeformationField(self, ddf_file):

@@ -226,13 +226,13 @@ class Warper:
         print(dscolors.green + "computing deformation field" + dscolors.clear)
         size_moving = self.moving[0].shape
         size_target = self.target[0].shape
-        ddfx = Resize(spatial_size=size_target, mode="trilinear")(ddf_ds[:, 0]) * (
+        ddfx = Resize(spatial_size=size_target, mode="trilinear")(ddf_ds[:, 0].to('cpu')).to('cpu') * (
             size_moving[0] / SZ
         )
-        ddfy = Resize(spatial_size=size_target, mode="trilinear")(ddf_ds[:, 1]) * (
+        ddfy = Resize(spatial_size=size_target, mode="trilinear")(ddf_ds[:, 1]).to('cpu') * (
             size_moving[1] / SZ
         )
-        ddfz = Resize(spatial_size=size_target, mode="trilinear")(ddf_ds[:, 2]) * (
+        ddfz = Resize(spatial_size=size_target, mode="trilinear")(ddf_ds[:, 2].to('cpu')).to('cpu') * (
             size_moving[2] / SZ
         )
         self.ddf = torch.cat((ddfx, ddfy, ddfz), dim=0)
@@ -241,16 +241,16 @@ class Warper:
         print(dscolors.green + "computing inverse deformation field" + dscolors.clear)
         size_moving = self.moving[0].shape
         size_target = self.target[0].shape
-        ddfx = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 0]) * (
+        ddfx = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 0].to('cpu')).to('cpu') * (
             size_target[0] / SZ
         )
-        ddfy = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 1]) * (
+        ddfy = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 1].to('cpu')).to('cpu') * (
             size_target[1] / SZ
         )
-        ddfz = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 2]) * (
+        ddfz = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 2].to('cpu')).to('cpu') * (
             size_target[2] / SZ
         )
-        self.inv_ddf = torch.cat((ddfx, ddfy, ddfz), dim=0)
+        self.inv_ddf = torch.cat((ddfx, ddfy, ddfz), dim=0).to('cpu')
         del inv_ddf_ds, ddfx, ddfy, ddfz
 
         # Apply the warp
