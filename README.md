@@ -11,9 +11,7 @@ This repository contains scripts and notebooks for performing image registration
 ## Project Structure
 
 
-## Setup
-
-### Dependencies
+## Installation
 
 Install the required dependencies using the `requirements.txt` file:
 
@@ -21,6 +19,7 @@ Install the required dependencies using the `requirements.txt` file:
 pip install -r requirements.txt
 ```
 
+## Usage
 Run the script from the command line:
 
 ```bash
