@@ -21,6 +21,25 @@ Install the required dependencies using the `requirements.txt` file:
 pip install -r requirements.txt
 ```
 
+Run the script from the command line:
+
+```bash
+python run_rodreg.py [options]
+```
+
+### Options
+- -i: Input subject file (required)
+- -r: Reference image file prefix (required)
+- --o: Output file name for non-linearly warped image (required)
+- --l: Output label file name (required)
+- --j: Output inverse jacobian file name (optional)
+- --linloss: Loss function for linear registration (default: 'cc', choices: 'mse', 'cc', 'mi')
+- --nonlinloss: Loss function for non-linear registration (default: 'cc', choices: 'mse', 'cc', 'mi')
+- --le: Maximum iterations for linear registration (default: 1500)
+- --ne: Maximum iterations for non-linear registration (default: 5000)
+- --d or --device: Computation device (default: "cuda")
+
+
 ### Configuration
 Ensure that the paths to the input images and atlases are correctly set in the scripts and notebooks.
 
@@ -33,16 +52,5 @@ Example command to run a script:
 ```
 python run_rodreg.py -i input_image.nii.gz -r reference_image_prefix --o output_image.nii.gz --l output_label.nii.gz
 ```
-
-### Contribution Guidelines
-#### Writing Tests
-- Write tests for new features and bug fixes.
-- Ensure all tests pass before submitting a pull request.
-#### Code Review
-- Follow the project's coding standards.
-- Ensure code is well-documented and readable.
-### Other Guidelines
-- Open an issue to discuss proposed changes before submitting a pull request.
-- Provide detailed descriptions of changes in pull requests.
 
 
