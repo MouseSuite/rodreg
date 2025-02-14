@@ -3,6 +3,8 @@
 This project is focused on the registration of rodent brain images using various techniques and tools.
 `rodreg` is a registration method that uses convolutional neural networks (CNNs) to generate a deformation field as the output from input moving (A) and target (B) images.  The input images are passed into the CNN, which produces a deformation field (mapping) between A and B. We note that `rodreg` does not require the CNN to be pre-trained but uses the neural network to create a deformation field uniquely specific to A and B. An advantage of this technique is the accelerated computation time, which is made possible by leveraging the efficiency of PyTorch. This method can be optimized using various cost functions that assess the similarities between A and B, such as cross-correlation and mutual information. The deformation field is regularized by adding bending energy regularize to the selected cost function.
 
+![Schematic diagram](rodreg.png)
+
 
 ## Quick Summary
 
