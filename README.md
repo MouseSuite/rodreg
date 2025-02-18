@@ -55,4 +55,13 @@ Example command to run a script:
 python run_rodreg.py -i input_image.nii.gz -r reference_image_prefix --o output_image.nii.gz --l output_label.nii.gz
 ```
 
+## License
+This project is licensed under the GPL (V2) License - see the [LICENSE](License_gpl-2.0.txt) file for details.
+
+## Contributing
+Contributions are welcome! Please contact [ajoshi@usc.edu](mailto:ajoshi@usc.edu) for further discussion.
+
+## Acknowledgments
+- This project is supported by NIH Grant R01-NS121761 (PIs: David Shattuck and Allan MacKenzie-Graham).
+
 
