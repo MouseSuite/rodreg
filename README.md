@@ -11,8 +11,6 @@ This project is focused on the registration of rodent brain images using various
 
 This repository contains scripts and notebooks for performing image registration on rodent brain images. The project utilizes tools such as SimpleITK, Nilearn, and MONAI for image processing and registration tasks.
 
-## Project Structure
-
 
 ## Installation
 
