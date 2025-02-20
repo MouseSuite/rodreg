@@ -1,7 +1,7 @@
 # rodreg: Rodent Brain Registration
 
 This project is focused on the registration of rodent brain images using various techniques and tools.
-`rodreg` is a registration method that uses convolutional neural networks (CNNs) to generate a deformation field as the output from input moving (A) and reference (B) images.  The input images are passed into the CNN, which produces a deformation field (mapping) between A and B. We note that `rodreg` does not require the CNN to be pre-trained but uses the neural network to create a deformation field uniquely specific to A and B. An advantage of this technique is the accelerated computation time, which is made possible by leveraging the efficiency of PyTorch. This method can be optimized using various cost functions that assess the similarities between A and B, such as cross-correlation and mutual information. The deformation field is regularized by adding bending energy regularize to the selected cost function.
+`rodreg` is a registration method that uses convolutional neural networks (CNNs) to generate a deformation field as the output from input moving (A) and reference (B) images.  The input images are passed into the CNN, which produces a deformation field (mapping) between A and B. We note that `rodreg` does not require the CNN to be pre-trained but uses the neural network to create a deformation field uniquely specific to A and B. An advantage of this technique is the accelerated computation time, which is made possible by leveraging the efficiency of PyTorch. This method can be optimized using various cost functions that assess the similarities between A and B, such as cross-correlation and mutual information. The deformation field is regularized by adding bending energy to regularize the selected cost function.
 
 <p align="center">
   <img src="rodreg.png" />
@@ -60,6 +60,6 @@ This project is licensed under the GPL (V2) License - see the [LICENSE](License_
 Contributions are welcome! Please contact [ajoshi@usc.edu](mailto:ajoshi@usc.edu) for further discussion.
 
 ## Acknowledgments
-- This project is supported by NIH Grant R01-NS121761 (PIs: David Shattuck and Allan MacKenzie-Graham).
+This project is supported by NIH Grant R01-NS121761 (PIs: David Shattuck and Allan MacKenzie-Graham).
 
 
