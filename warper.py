@@ -443,16 +443,45 @@ class Warper:
                 ddf_file,
             )
 
+        # if inv_ddf_file is not None:
+        #     print(dscolors.green + "saving inv_ddf: " + dscolors.clear + inv_ddf_file)
+        #     nib.save(
+        #         nib.Nifti1Image(
+        #             torch.permute(self.inv_ddf, [1, 2, 3, 0]).detach().cpu().numpy(),
+        #             self.moving.affine,
+        #         ),
+        #         inv_ddf_file,
+        #     )
+        print(dscolors.green + "computing inverse deformation field" + dscolors.clear)
+        
+        # Iterative inversion to estimate inverse field on the target grid
+        inv_ddf_ds = -ddf_ds
+        for _ in range(10):
+            inv_ddf_ds = -apply_warp(inv_ddf_ds, ddf_ds, ddf_ds)
+
+        size_moving = self.moving[0].shape
+        size_target = self.target[0].shape
+        inv_ddfx = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 0].to('cpu')).to('cpu') * (
+            size_target[0] / SZ
+        )
+        inv_ddfy = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 1].to('cpu')).to('cpu') * (
+            size_target[1] / SZ
+        )
+        inv_ddfz = Resize(spatial_size=size_moving, mode="trilinear")(inv_ddf_ds[:, 2].to('cpu')).to('cpu') * (
+            size_target[2] / SZ
+        )
+        self.inv_ddf = torch.cat((inv_ddfx, inv_ddfy, inv_ddfz), dim=0)
+        del inv_ddfx, inv_ddfy, inv_ddfz, inv_ddf_ds
+
         if inv_ddf_file is not None:
             print(dscolors.green + "saving inv_ddf: " + dscolors.clear + inv_ddf_file)
             nib.save(
-                nib.Nifti1Image(
-                    torch.permute(self.inv_ddf, [1, 2, 3, 0]).detach().cpu().numpy(),
-                    self.moving.affine,
-                ),
-                inv_ddf_file,
+            nib.Nifti1Image(
+                torch.permute(self.inv_ddf, [1, 2, 3, 0]).detach().cpu().numpy(),
+                self.moving.affine,
+            ),
+            inv_ddf_file,
             )
-
         # Apply the warp to labels
         if label_file is not None and output_label_file is not None:
             print(dscolors.green + "warping " + label_file + dscolors.clear)
@@ -484,12 +513,15 @@ class Warper:
             )
 
         if inv_jacobian_determinant_file is not None:
-            ijdet = jacobian_determinant(self.inv_ddf)
-            # write_nifti(jdet,'jdet.nii.gz',affine=self.target.affine)
-            nib.save(
-                nib.Nifti1Image(ijdet, self.moving.affine),
-                inv_jacobian_determinant_file,
-            )
+            if hasattr(self, 'inv_ddf'):
+                ijdet = jacobian_determinant(self.inv_ddf)
+                # write_nifti(jdet,'jdet.nii.gz',affine=self.target.affine)
+                nib.save(
+                    nib.Nifti1Image(ijdet, self.moving.affine),
+                    inv_jacobian_determinant_file,
+                )
+            else:
+                print(dscolors.yellow + "Warning: inv_ddf not computed, skipping inverse jacobian determinant" + dscolors.clear)
 
 
 #####################
