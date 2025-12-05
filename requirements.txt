@@ -3,4 +3,5 @@ monai
 SimpleITK
 jupyterlab
 matplotlib
+tqdm
 
