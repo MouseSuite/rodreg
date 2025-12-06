@@ -47,7 +47,7 @@ run_rodreg(
     linloss="cc",
     nonlinloss="cc",
     linear_epochs=1500,
-    nonlinear_epochs=500
+    nonlinear_epochs=5000
 )
 print("Registration completed successfully!")
 
