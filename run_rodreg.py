@@ -71,8 +71,21 @@ def run_rodreg(
         print('ERROR: file', atlas_label, 'does not exist.')
         raise FileNotFoundError(atlas_label)
 
-    subID = inputT2.split('.')[0]
-    subbase = subID + '.rodreg'
+    # Determine subject name and intermediate directory
+    input_path = Path(inputT2)
+    name = input_path.name
+    if name.endswith('.nii.gz'):
+        subject_name = name[:-7]
+    elif name.endswith('.nii'):
+        subject_name = name[:-4]
+    else:
+        subject_name = input_path.stem
+
+    output_dir = os.path.dirname(output_file)
+    intermediate_dir = os.path.join(output_dir, subject_name + "_intermediate")
+    os.makedirs(intermediate_dir, exist_ok=True)
+
+    subbase = os.path.join(intermediate_dir, subject_name + '.rodreg')
 
     centered_atlas = subbase+".atlas.cent.nii.gz"
     centered_atlas_labels = subbase+".atlas.cent.label.nii.gz"
@@ -178,8 +191,12 @@ def run_rodreg(
     disp_field, meta = LoadImage(image_only=False)(nonlin_reg_map_file)
     disp_field = EnsureChannelFirst()(disp_field)
 
-    if not os.path.exists(centered_atlas_linreg_labels):
-        print(f"Warning: {centered_atlas_linreg_labels} not found. Regenerating...")
+    print(f"Loading linear registered labels from: {centered_atlas_linreg_labels}")
+    try:
+        at1, meta = LoadImage(image_only=False)(centered_atlas_linreg_labels)
+    except Exception as e:
+        print(f"Error loading {centered_atlas_linreg_labels}: {e}")
+        print("Regenerating...")
         disp_field_lin, _ = LoadImage(image_only=False)(lin_reg_map_file)
         disp_field_lin = EnsureChannelFirst()(disp_field_lin)
         at1_cent, _ = LoadImage(image_only=False)(centered_atlas_labels)
@@ -191,8 +208,8 @@ def run_rodreg(
             nb.Nifti1Image(warped_lab_lin[0, 0].detach().cpu().numpy(), at_lab_cent.affine),
             centered_atlas_linreg_labels,
         )
+        at1, meta = LoadImage(image_only=False)(centered_atlas_linreg_labels)
 
-    at1, meta = LoadImage(image_only=False)(centered_atlas_linreg_labels)
     at_lab = EnsureChannelFirst()(at1)
 
     warped_lab = apply_warp(
