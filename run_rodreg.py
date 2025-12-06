@@ -178,6 +178,20 @@ def run_rodreg(
     disp_field, meta = LoadImage(image_only=False)(nonlin_reg_map_file)
     disp_field = EnsureChannelFirst()(disp_field)
 
+    if not os.path.exists(centered_atlas_linreg_labels):
+        print(f"Warning: {centered_atlas_linreg_labels} not found. Regenerating...")
+        disp_field_lin, _ = LoadImage(image_only=False)(lin_reg_map_file)
+        disp_field_lin = EnsureChannelFirst()(disp_field_lin)
+        at1_cent, _ = LoadImage(image_only=False)(centered_atlas_labels)
+        at_lab_cent = EnsureChannelFirst()(at1_cent)
+        warped_lab_lin = apply_warp(
+            disp_field_lin[None,], at_lab_cent[None,], at_lab_cent[None,], interp_mode="nearest"
+        )
+        nb.save(
+            nb.Nifti1Image(warped_lab_lin[0, 0].detach().cpu().numpy(), at_lab_cent.affine),
+            centered_atlas_linreg_labels,
+        )
+
     at1, meta = LoadImage(image_only=False)(centered_atlas_linreg_labels)
     at_lab = EnsureChannelFirst()(at1)
 
