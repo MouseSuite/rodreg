@@ -402,7 +402,7 @@ class Warper:
             size_moving[2] / SZ
         )
         self.ddf = torch.cat((ddfx, ddfy, ddfz), dim=0)
-        del ddf_ds, ddfx, ddfy, ddfz
+        del ddfx, ddfy, ddfz
 
         # print(dscolors.green + "computing inverse deformation field" + dscolors.clear)
         # size_moving = self.moving[0].shape
@@ -455,6 +455,7 @@ class Warper:
         print(dscolors.green + "computing inverse deformation field" + dscolors.clear)
         
         # Iterative inversion to estimate inverse field on the target grid
+        # Fixed point iteration: u^{-1}_{k+1} = -u(x + u^{-1}_k(x))
         inv_ddf_ds = -ddf_ds
         for _ in range(10):
             inv_ddf_ds = -apply_warp(inv_ddf_ds, ddf_ds, ddf_ds)

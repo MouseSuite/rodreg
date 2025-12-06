@@ -163,11 +163,11 @@ def run_rodreg(
         output_file=centered_atlas_nonlinreg,
         ddf_file=nonlin_reg_map_file,
         inv_ddf_file=inv_nonlin_reg_map_file,
-        reg_penalty=1e-5,     # Extremely low regularization to maximize internal deformation
-        nn_input_size=128,    # Higher resolution to preserve hippocampal boundaries
-        lr=.01,              # Higher initial LR to encourage movement
-        use_diffusion_reg=False,  # Use gradient regularization for smoother deformations
-        kernel_size=15,       # Larger kernel (15) to capture broader context for internal alignment
+        reg_penalty=1e-5,
+        nn_input_size=128,
+        lr=0.01,
+        use_diffusion_reg=False,
+        kernel_size=15,
         max_epochs=nonlinear_epochs,
         loss=nonlinloss,
         jacobian_determinant_file=jac_det_file,
