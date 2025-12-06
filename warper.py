@@ -294,7 +294,11 @@ class Warper:
                     # Save intermediate result
                     with torch.no_grad():
                         # Define intermediate dir near target file
-                        inter_dir = os.path.join(os.path.dirname(output_file), "intermediate")
+                        #inter_dir = os.path.join(os.path.dirname(output_file), f"{os.path.splitext(os.path.basename(output_file))[0]}_intermediate")
+                        #os.makedirs(inter_dir, exist_ok=True)
+                        output_dir = os.path.dirname(output_file)
+                        subject_name = target_file[:-7] #os.path.splitext(os.path.basename(moving_file))[0]
+                        inter_dir = os.path.join(output_dir, subject_name + "_intermediate")
                         os.makedirs(inter_dir, exist_ok=True)
 
                         # Save Fixed Image (once)

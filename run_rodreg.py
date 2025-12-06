@@ -1,4 +1,4 @@
-#!/home/ajoshi/anaconda3/bin/python
+#!python
 # -*- coding: utf-8 -*-
 
 import nibabel as nib
