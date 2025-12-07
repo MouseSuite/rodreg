@@ -175,7 +175,7 @@ def run_rodreg(
         moving_file=centered_atlas_linreg,
         output_file=centered_atlas_nonlinreg,
         ddf_file=nonlin_reg_map_file,
-        inv_ddf_file=inv_nonlin_reg_map_file,
+        inv_ddf_file=None,
         reg_penalty=1e-5,
         nn_input_size=128,
         lr=0.01,
@@ -184,7 +184,7 @@ def run_rodreg(
         max_epochs=nonlinear_epochs,
         loss=nonlinloss,
         jacobian_determinant_file=jac_det_file,
-        inv_jacobian_determinant_file=inv_jac_det_file,
+        inv_jacobian_determinant_file=None,
         device=device,
     )
 
@@ -230,6 +230,7 @@ def run_rodreg(
     sitk.WriteImage(moved_image, centered_atlas)
 
     applydeformation(centered_atlas, composed_ddf_file, full_deformed_atlas)
+    # compute jacobian of composed field (edge-zeroing handled inside jacobian)
     jacobian(composed_ddf_file, jacobian_full_det_file)
 
     # Invert deformations and apply centering
@@ -242,7 +243,7 @@ def run_rodreg(
     moved_image = sitk.Resample(moving_image, fixed_image, inv_cent_transform)
     sitk.WriteImage(moved_image, subject_deformed2_atlas)
 
-    # Calculate jacobian of the deformation field
+    # Calculate jacobian of the inverse composed deformation field
     jacobian(inv_composed_ddf_file, inv_jacobian_full_det_file)
 
     if inverse_jacobian_file:

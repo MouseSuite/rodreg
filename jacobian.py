@@ -1,6 +1,7 @@
 import nibabel as nib
 import numpy as np
 import argparse
+from nilearn.image import resample_to_img
 
 def load_nifti(file_path):
     """Load a NIfTI file and return the image data as a numpy array along with the affine matrix."""
@@ -64,17 +65,54 @@ def compute_jacobian_determinant(vf):
     return det
 
 
-def jacobian(def_path, output_path):
+def jacobian(def_path, output_path, mask_path=None, edge_margin=3):
+    """
+    Compute the jacobian determinant for a deformation field and save it.
+
+    By default this will zero-out Jacobian values within `edge_margin` voxels
+    from the image boundaries to avoid edge artifacts. If `mask_path` is
+    provided it will still be applied after the edge-zeroing (masking is
+    optional and preserved for backward-compatibility).
+    """
     # Load deformation field
     def_field, affine = load_nifti(def_path)
-    
+
     # Check if the deformation field has 3 components per voxel
     if def_field.shape[-1] != 3:
         raise ValueError("Deformation field must have 3 components per voxel.")
-    
+
     # Compute the Jacobian determinant
     jacobian_determinant = compute_jacobian_determinant(def_field.transpose(3, 0, 1, 2))
-    
+
+    # Fill near edges with identity value (1) to avoid spurious extreme values
+    # from finite differences/resampling. A value of 1 means 'no local volume change'.
+    if edge_margin and edge_margin > 0:
+        h, w, d = jacobian_determinant.shape
+        m = int(edge_margin)
+        if m * 2 >= min(h, w, d):
+            # margin too large, set whole image to identity
+            jacobian_determinant[:] = 1
+        else:
+            jacobian_determinant[:m, :, :] = 1
+            jacobian_determinant[h - m :, :, :] = 1
+            jacobian_determinant[:, :m, :] = 1
+            jacobian_determinant[:, w - m :, :] = 1
+            jacobian_determinant[:, :, :m] = 1
+            jacobian_determinant[:, :, d - m :] = 1
+
+    # If a mask is provided, resample it to the jacobian image and zero outside mask
+    if mask_path is not None and mask_path != "":
+        try:
+            mask_img = nib.load(mask_path)
+            # Create a nifti image from jacobian for resampling reference
+            jac_img = nib.Nifti1Image(jacobian_determinant, affine)
+            resampled_mask = resample_to_img(mask_img, jac_img, interpolation="nearest")
+            mask_data = resampled_mask.get_fdata()
+            # Treat non-zero as inside mask
+            jacobian_determinant[mask_data == 0] = 0
+        except Exception as e:
+            print(f"Warning: could not apply mask {mask_path}: {e}")
+
     # Save the Jacobian determinant
     save_nifti(jacobian_determinant, affine, output_path)
     print(f"Jacobian determinant saved to {output_path}")
@@ -83,6 +121,8 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Calculate the Jacobian determinant of a 4D deformation field using nibabel.")
     parser.add_argument('def_path', type=str, help='Path to the deformation field NIfTI file')
     parser.add_argument('output_path', type=str, help='Path to save the Jacobian determinant NIfTI file')
+    parser.add_argument('--mask', type=str, default=None, help='Optional mask NIfTI file; zeros jacobian outside mask')
+    parser.add_argument('--edge-margin', type=int, default=3, help='Number of voxels from image border to zero jacobian (default: 3)')
 
     args = parser.parse_args()
-    jacobian(args.def_path, args.output_path)
+    jacobian(args.def_path, args.output_path, mask_path=args.mask, edge_margin=args.edge_margin)

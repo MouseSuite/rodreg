@@ -269,6 +269,26 @@ class Warper:
                 regloss = current_reg_penalty * regularization(ddf_ds)
                 
                 jac_det = jacobian_determinant_torch(ddf_ds[0])
+                # Ignore edge artifacts when computing folding penalty:
+                # set jacobian to identity (1) within `edge_margin` voxels of the border
+                edge_margin = 3
+                if edge_margin and edge_margin > 0:
+                    try:
+                        # jac_det is a torch tensor with shape (H,W,D)
+                        h, w, d = jac_det.shape
+                        m = int(edge_margin)
+                        if m * 2 >= min(h, w, d):
+                            jac_det = torch.ones_like(jac_det)
+                        else:
+                            jac_det[:m, :, :] = 1.0
+                            jac_det[h - m :, :, :] = 1.0
+                            jac_det[:, :m, :] = 1.0
+                            jac_det[:, w - m :, :] = 1.0
+                            jac_det[:, :, :m] = 1.0
+                            jac_det[:, :, d - m :] = 1.0
+                    except Exception:
+                        # if shape assumptions fail, fall back to original jac_det
+                        pass
                 folding_penalty = torch.sum(torch.relu(-jac_det)) * 0.001
                 
                 vol_loss = imgloss + regloss + folding_penalty
