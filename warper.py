@@ -314,10 +314,17 @@ class Warper:
                     # Save intermediate result
                     with torch.no_grad():
                         # Define intermediate dir near target file
-                        #inter_dir = os.path.join(os.path.dirname(output_file), f"{os.path.splitext(os.path.basename(output_file))[0]}_intermediate")
-                        #os.makedirs(inter_dir, exist_ok=True)
                         output_dir = os.path.dirname(output_file)
-                        subject_name = target_file[:-7] #os.path.splitext(os.path.basename(moving_file))[0]
+                        
+                        # Get subject name from target_file basename
+                        target_base = os.path.basename(target_file)
+                        if target_base.endswith(".nii.gz"):
+                            subject_name = target_base[:-7]
+                        elif target_base.endswith(".nii"):
+                            subject_name = target_base[:-4]
+                        else:
+                            subject_name = os.path.splitext(target_base)[0]
+                            
                         inter_dir = os.path.join(output_dir, subject_name + "_intermediate")
                         os.makedirs(inter_dir, exist_ok=True)
 

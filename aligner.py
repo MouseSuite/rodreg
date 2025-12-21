@@ -11,6 +11,8 @@ from warp_utils import apply_warp
 import argparse
 import torch
 import nibabel as nib
+import os
+import numpy as np
 
 import SimpleITK as sitk
 
@@ -56,7 +58,7 @@ class Aligner:
         self.target, self.moving_meta = LoadImage(image_only=False)(fixed_file)
         self.target = EnsureChannelFirst()(self.target).to('cpu')
 
-    def performAffine(self):
+    def performAffine(self, fixed_file=None, output_file=None):
         SZ = self.nn_input_size
         moving_ds = Resize(spatial_size=[SZ, SZ, SZ])(
             self.moving).to(self.device)
@@ -95,6 +97,44 @@ class Aligner:
             print('epoch_loss:', dscolors.blue, f'{vol_loss.cpu().detach().numpy():.4f}', dscolors.clear,
                   ' for epoch:', dscolors.green, f'{epoch}/{self.max_epochs}', dscolors.clear, '', end='\r')
 
+            if (epoch + 1) % 200 == 0 and fixed_file is not None and output_file is not None:
+                with torch.no_grad():
+                    output_dir = os.path.dirname(output_file)
+                    target_base = os.path.basename(fixed_file)
+                    if target_base.endswith(".nii.gz"):
+                        subject_name = target_base[:-7]
+                    elif target_base.endswith(".nii"):
+                        subject_name = target_base[:-4]
+                    else:
+                        subject_name = os.path.splitext(target_base)[0]
+
+                    inter_dir = os.path.join(output_dir, subject_name + "_intermediate")
+                    os.makedirs(inter_dir, exist_ok=True)
+
+                    # Save Fixed Image (once)
+                    fixed_save_path = os.path.join(inter_dir, "fixed.nii.gz")
+                    if not os.path.exists(fixed_save_path):
+                        nib.save(nib.Nifti1Image(self.target[0].cpu().numpy(), self.target.affine), fixed_save_path)
+
+                    # Upsample DDF to original resolution
+                    size_moving = self.moving[0].shape
+                    size_target = self.target[0].shape
+                    ddfx = (Resize(spatial_size=size_target, mode='trilinear')(
+                        ddf_ds[:, 0])*(size_moving[0]/SZ)).to('cpu')
+                    ddfy = (Resize(spatial_size=size_target, mode='trilinear')(
+                        ddf_ds[:, 1])*(size_moving[1]/SZ)).to('cpu')
+                    ddfz = (Resize(spatial_size=size_target, mode='trilinear')(
+                        ddf_ds[:, 2])*(size_moving[2]/SZ)).to('cpu')
+                    ddf_up = torch.cat((ddfx, ddfy, ddfz), dim=0).to('cpu')
+
+                    image_moved_intermediate = apply_warp(
+                        ddf_up[None, ], self.moving[None, ], self.target[None, ])
+
+                    save_path = os.path.join(inter_dir, f"affine_warped_epoch_{epoch+1}.nii.gz")
+                    nib.save(nib.Nifti1Image(image_moved_intermediate[0, 0].detach(
+                    ).cpu().numpy(), self.target.affine), save_path)
+                    print(f"\nSaved intermediate result to {save_path}")
+
         size_moving = self.moving[0].shape
         size_target = self.target[0].shape
         ddfx = (Resize(spatial_size=size_target, mode='trilinear')(
@@ -125,7 +165,7 @@ class Aligner:
         self.device = device
         self.loadMoving(moving_file)
         self.loadTarget(fixed_file)
-        self.performAffine()
+        self.performAffine(fixed_file=fixed_file, output_file=output_file)
         self.saveWarpedFile(output_file)
 
         if ddf_file is not None:
