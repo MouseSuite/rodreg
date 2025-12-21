@@ -7,6 +7,8 @@ import argparse
 import sys
 import os
 from os.path import join
+import time
+from datetime import datetime
 import nilearn.image as ni
 import nibabel as nb
 import SimpleITK as sitk
@@ -26,6 +28,15 @@ from composedeformations import composedeformation
 from applydeformation import applydeformation
 from invertdeformationfield import invertdeformationfield
 from jacobian import jacobian
+
+
+def log_message(message, log_file):
+    timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+    formatted_message = f"[{timestamp}] {message}"
+    print(message)
+    if log_file:
+        with open(log_file, "a") as f:
+            f.write(formatted_message + "\n")
 
 
 def run_rodreg(
@@ -55,6 +66,7 @@ def run_rodreg(
         nonlinear_epochs: Maximum iterations for non-linear registration
         device: Device to use ('cuda', 'cpu', etc.)
     """
+    start_total = time.time()
     inputT2 = input_file
     atlas_brain = reference_prefix + '.brain.nii.gz'
     atlas_label = reference_prefix + '.label.nii.gz'
@@ -85,6 +97,9 @@ def run_rodreg(
     intermediate_dir = os.path.join(output_dir, subject_name + "_intermediate")
     os.makedirs(intermediate_dir, exist_ok=True)
 
+    log_file = os.path.join(output_dir, subject_name + "_rodreg_log.txt")
+    log_message(f"Starting RodReg pipeline for {subject_name}", log_file)
+
     subbase = os.path.join(intermediate_dir, subject_name + '.rodreg')
 
     centered_atlas = subbase+".atlas.cent.nii.gz"
@@ -114,6 +129,8 @@ def run_rodreg(
     inv_jacobian_full_atlas_det_file = inverse_jacobian_file
 
     # Centering registration
+    log_message("Step 1: Centering registration...", log_file)
+    start_step = time.time()
     fixed_image = sitk.ReadImage(inputT2, sitk.sitkFloat32)
     moving_image = sitk.ReadImage(atlas_brain, sitk.sitkFloat32)
     initial_transform = sitk.CenteredTransformInitializer(
@@ -141,8 +158,11 @@ def run_rodreg(
         interpolator=sitk.sitkNearestNeighbor,
     )
     sitk.WriteImage(moved_image, centered_atlas_labels)
+    log_message(f"Centering registration finished in {time.time() - start_step:.2f} seconds", log_file)
 
     # Linear affine registration
+    log_message("Step 2: Linear affine registration...", log_file)
+    start_step = time.time()
     aligner = Aligner()
     aligner.affine_reg(
         fixed_file=inputT2,
@@ -167,8 +187,11 @@ def run_rodreg(
         nb.Nifti1Image(warped_lab[0, 0].detach().cpu().numpy(), at_lab.affine),
         centered_atlas_linreg_labels,
     )
+    log_message(f"Linear affine registration finished in {time.time() - start_step:.2f} seconds", log_file)
 
     # Non-linear registration
+    log_message("Step 3: Non-linear registration...", log_file)
+    start_step = time.time()
     nonlin_reg = Warper()
     nonlin_reg.nonlinear_reg(
         target_file=inputT2,
@@ -220,8 +243,11 @@ def run_rodreg(
             np.uint16(warped_lab[0, 0].detach().cpu().numpy()), at_lab.affine),
         centered_atlas_nonlinreg_labels,
     )
+    log_message(f"Non-linear registration finished in {time.time() - start_step:.2f} seconds", log_file)
 
     # Compose deformations
+    log_message("Step 4: Composing deformations and calculating Jacobian...", log_file)
+    start_step = time.time()
     composedeformation(nonlin_reg_map_file, lin_reg_map_file, composed_ddf_file)
 
     cent_transform = sitk.ReadTransform(cent_transform_file)
@@ -253,6 +279,9 @@ def run_rodreg(
         inv_cent_transform = sitk.ReadTransform(inv_cent_transform_file)
         moved_image = sitk.Resample(moving_image, fixed_image, inv_cent_transform)
         sitk.WriteImage(moved_image, inverse_jacobian_file)
+    
+    log_message(f"Post-processing finished in {time.time() - start_step:.2f} seconds", log_file)
+    log_message(f"Total RodReg pipeline finished in {time.time() - start_total:.2f} seconds", log_file)
 
 
 def main():
