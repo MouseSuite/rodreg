@@ -4,6 +4,7 @@ from monai.utils import set_determinism
 from monai.networks.nets import GlobalNet, LocalNet, RegUNet, unet
 from monai.config import USE_COMPILED
 from monai.networks.blocks import Warp, DVF2DDF
+from monai.networks.layers import GaussianFilter
 import torch
 from torch.nn import MSELoss
 from monai.transforms import (
@@ -11,6 +12,7 @@ from monai.transforms import (
     Resize,
     EnsureChannelFirst,
     ScaleIntensityRangePercentiles,
+    GaussianSmooth,
 )
 from monai.losses.ssim_loss import SSIMLoss
 from monai.losses import (
@@ -125,6 +127,8 @@ class Warper:
         device="cuda",
         use_diffusion_reg=True,
         kernel_size=7,
+        poly_weight=100.0,
+        smooth_sigma=1.0,
     ):
         # Use diffusion (gradient) regularization for smoother local deformations
         if use_diffusion_reg:
@@ -248,12 +252,21 @@ class Warper:
             else:
                 current_max_epochs = max_epochs
 
+            if smooth_sigma > 0:
+                # Initialize Gaussian smoother for DDF
+                # sigma is in voxels.
+                smoother = GaussianFilter(spatial_dims=3, sigma=smooth_sigma, truncated=3.0).to(device)
+
             for epoch in range(current_max_epochs):
                 optimizerR.zero_grad()
                 input_data = torch.cat((moving_ds_orig, target_ds_orig), dim=0)
                 input_data = input_data[None,]
                 # Direct prediction of Displacement Field (DDF)
                 ddf_ds = reg(input_data)
+                
+                if smooth_sigma > 0:
+                    ddf_ds = smoother(ddf_ds)
+
                 # ddf_ds = dvf_to_ddf(dvf_ds)
                 
                 # Use warp_utils.apply_warp to ensure consistency with saving/inference (Voxel Coordinates)
@@ -300,7 +313,7 @@ class Warper:
                 range_penalty = torch.sum(torch.relu(jac_min_bound - jac_det_for_penalty)) + \
                                 torch.sum(torch.relu(jac_det_for_penalty - jac_max_bound))
                 
-                folding_penalty = range_penalty * 0.01
+                folding_penalty = range_penalty * poly_weight
                 
                 vol_loss = imgloss + regloss + folding_penalty
 
@@ -389,6 +402,33 @@ class Warper:
                         )
                         print(f"\nSaved intermediate result to {save_path}")
 
+                        # Save DDF
+                        ddf_save_name = f"ddf_scale_{scale_idx+1}_epoch_{epoch+1}.nii.gz"
+                        ddf_save_path = os.path.join(inter_dir, ddf_save_name)
+                        nib.save(
+                            nib.Nifti1Image(
+                                torch.permute(ddf_up[0], [1, 2, 3, 0]).cpu().numpy(),
+                                self.target.affine
+                            ),
+                            ddf_save_path
+                        )
+                        print(f"Saved intermediate DDF to {ddf_save_path}")
+
+                        # Save Jacobian
+                        jac_save_name = f"jacobian_scale_{scale_idx+1}_epoch_{epoch+1}.nii.gz"
+                        jac_save_path = os.path.join(inter_dir, jac_save_name)
+                        
+                        # Use torch version for efficiency since ddf_up is a tensor
+                        jdet = jacobian_determinant_torch(ddf_up[0].cpu())
+                        nib.save(
+                            nib.Nifti1Image(
+                                jdet.numpy(),
+                                self.target.affine
+                            ),
+                            jac_save_path
+                        )
+                        print(f"Saved intermediate Jacobian to {jac_save_path}")
+
                 if epoch % 50 == 0:
                     print(
                         f"\nScale {scale_idx+1} epoch: {epoch}/{current_max_epochs}, Loss: {vol_loss.item():.4f}, "
@@ -417,6 +457,8 @@ class Warper:
             input_data = torch.cat((moving_ds_orig, target_ds_orig), dim=0)
             input_data = input_data[None,]
             ddf_ds = reg(input_data)
+            if smooth_sigma > 0:
+                ddf_ds = smoother(ddf_ds)
             # ddf_ds = dvf_to_ddf(dvf_ds)
             # inv_ddf_ds = dvf_to_ddf(-dvf_ds)
             image_moved = apply_warp(ddf_ds, moving_ds_orig[None,], target_ds_orig[None,])

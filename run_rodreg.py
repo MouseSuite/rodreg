@@ -199,16 +199,18 @@ def run_rodreg(
         output_file=centered_atlas_nonlinreg,
         ddf_file=nonlin_reg_map_file,
         inv_ddf_file=None,
-        reg_penalty=1e-5,
+        reg_penalty=1e-4, # Small Bending Energy penalty to allow deformation
         nn_input_size=128,
         lr=0.01,
-        use_diffusion_reg=True, # changed from false to true
+        use_diffusion_reg=False, # Use Bending Energy (equivalent to curvature penalty)
         #kernel_size=15,
         max_epochs=nonlinear_epochs,
         loss=nonlinloss,
         jacobian_determinant_file=jac_det_file,
         inv_jacobian_determinant_file=None,
         device=device,
+        poly_weight=0.1, # Weak Jacobian constraint to avoid suppressing deformation
+        smooth_sigma=5.0, # Explicit smoothing (similar to ANTs total_sigma), was 1.0
     )
 
     disp_field, meta = LoadImage(image_only=False)(nonlin_reg_map_file)
