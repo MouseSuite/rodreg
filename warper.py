@@ -123,7 +123,7 @@ class Warper:
         lr=1e-6,
         max_epochs=1000,
         device="cuda",
-        use_diffusion_reg=False,
+        use_diffusion_reg=True,
         kernel_size=7,
     ):
         # Use diffusion (gradient) regularization for smoother local deformations
@@ -278,18 +278,29 @@ class Warper:
                         h, w, d = jac_det.shape
                         m = int(edge_margin)
                         if m * 2 >= min(h, w, d):
-                            jac_det = torch.ones_like(jac_det)
+                            jac_det_for_penalty = torch.ones_like(jac_det)
                         else:
-                            jac_det[:m, :, :] = 1.0
-                            jac_det[h - m :, :, :] = 1.0
-                            jac_det[:, :m, :] = 1.0
-                            jac_det[:, w - m :, :] = 1.0
-                            jac_det[:, :, :m] = 1.0
-                            jac_det[:, :, d - m :] = 1.0
+                            jac_det_for_penalty = jac_det.clone()
+                            jac_det_for_penalty[:m, :, :] = 1.0
+                            jac_det_for_penalty[h - m :, :, :] = 1.0
+                            jac_det_for_penalty[:, :m, :] = 1.0
+                            jac_det_for_penalty[:, w - m :, :] = 1.0
+                            jac_det_for_penalty[:, :, :m] = 1.0
+                            jac_det_for_penalty[:, :, d - m :] = 1.0
                     except Exception:
                         # if shape assumptions fail, fall back to original jac_det
-                        pass
-                folding_penalty = torch.sum(torch.relu(-jac_det)) * 0.001
+                        jac_det_for_penalty = jac_det
+                else:
+                    jac_det_for_penalty = jac_det
+
+                # Penalty for Jacobian outside [0.1, 3.0] to ensure physical plausibility
+                # and avoid extreme compression/expansion
+                jac_min_bound = 0.1
+                jac_max_bound = 3.0
+                range_penalty = torch.sum(torch.relu(jac_min_bound - jac_det_for_penalty)) + \
+                                torch.sum(torch.relu(jac_det_for_penalty - jac_max_bound))
+                
+                folding_penalty = range_penalty * 0.01
                 
                 vol_loss = imgloss + regloss + folding_penalty
 
@@ -539,6 +550,7 @@ class Warper:
 
         if jacobian_determinant_file is not None:
             jdet = jacobian_determinant(self.ddf)
+            print(f"Jacobian range: [{jdet.min():.4f}, {jdet.max():.4f}]")
             # write_nifti(jdet,'jdet.nii.gz',affine=self.target.affine)
             nib.save(
                 nib.Nifti1Image(jdet, self.target.affine), jacobian_determinant_file

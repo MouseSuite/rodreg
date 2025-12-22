@@ -36,6 +36,8 @@ atlas_label = os.path.join(atlas_path, "MSA50.label.nii.gz")
 # Output filenames
 output_warped = os.path.join(output_path, "ApoE071524_C12L_ants_warped.nii.gz")
 output_label = os.path.join(output_path, "ApoE071524_C12L_ants_warped_label.nii.gz")
+output_jac = os.path.join(output_path, "ApoE071524_C12L_ants_jac.nii.gz")
+output_inv_jac = os.path.join(output_path, "ApoE071524_C12L_ants_inv_jac.nii.gz")
 
 log_message("Loading images...", log_file)
 start_load = time.time()
@@ -78,7 +80,23 @@ ants.image_write(warped_label, output_label)
 end_warp = time.time()
 log_message(f"Warping finished in {end_warp - start_warp:.2f} seconds", log_file)
 
+log_message("Calculating Jacobian maps...", log_file)
+start_jac = time.time()
+# The warp field is the first element in fwdtransforms for SyN
+# It maps moving to fixed
+jac = ants.create_jacobian_determinant_image(fixed, registration['fwdtransforms'][0])
+ants.image_write(jac, output_jac)
+
+# The inverse warp field is the second element in invtransforms for SyN
+# It maps fixed to moving
+inv_jac = ants.create_jacobian_determinant_image(moving, registration['invtransforms'][1])
+ants.image_write(inv_jac, output_inv_jac)
+end_jac = time.time()
+log_message(f"Jacobian calculation finished in {end_jac - start_jac:.2f} seconds", log_file)
+
 end_total = time.time()
 log_message(f"ANTs registration completed successfully in {end_total - start_total:.2f} seconds total!", log_file)
 log_message(f"Warped image saved to: {output_warped}", log_file)
 log_message(f"Warped labels saved to: {output_label}", log_file)
+log_message(f"Jacobian map saved to: {output_jac}", log_file)
+log_message(f"Inverse Jacobian map saved to: {output_inv_jac}", log_file)

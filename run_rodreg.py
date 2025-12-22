@@ -202,8 +202,8 @@ def run_rodreg(
         reg_penalty=1e-5,
         nn_input_size=128,
         lr=0.01,
-        use_diffusion_reg=False,
-        kernel_size=15,
+        use_diffusion_reg=True, # changed from false to true
+        #kernel_size=15,
         max_epochs=nonlinear_epochs,
         loss=nonlinloss,
         jacobian_determinant_file=jac_det_file,
