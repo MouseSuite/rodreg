@@ -210,7 +210,7 @@ def run_rodreg(
         inv_jacobian_determinant_file=None,
         device=device,
         poly_weight=0.1, # Weak Jacobian constraint to avoid suppressing deformation
-        smooth_sigma=5.0, # Explicit smoothing (similar to ANTs total_sigma), was 1.0
+        smooth_sigma=0.7, # Explicit smoothing (similar to ANTs total_sigma), was 1.0
     )
 
     disp_field, meta = LoadImage(image_only=False)(nonlin_reg_map_file)
