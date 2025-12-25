@@ -150,10 +150,10 @@ class Warper:
             spatial_dims=3,  # spatial dims
             in_channels=2,
             out_channels=3,  # output channels (to represent 3D displacement vector field)
-            channels=(32, 64, 128, 256, 320),  # Wider network for better feature extraction
-            strides=(2, 2, 2, 2),  # convolutional strides
+            channels=(16, 32, 64),  # Very shallow network
+            strides=(2, 2),  # convolutional strides
             norm="instance",  # Instance norm better for registration
-            dropout=0.1,  # Light dropout for regularization
+            #dropout=0.1,  # Light dropout for regularization
         ).to(device)
         
         if USE_COMPILED:
@@ -218,14 +218,14 @@ class Warper:
             
             # Scale weights of the final layer to account for resolution change
             # This ensures the network output (voxel displacement) roughly matches physical scale
-            # if scale_idx > 0:
-            #     prev_SZ = scales[scale_idx-1]
-            #     scale_factor = SZ / prev_SZ
-            #     with torch.no_grad():
-            #         reg.model[-1].conv.weight.data *= scale_factor
-            #         if reg.model[-1].conv.bias is not None:
-            #             reg.model[-1].conv.bias.data *= scale_factor
-            #     print(dscolors.yellow + f"Scaled final layer weights by {scale_factor:.2f} for resolution change" + dscolors.clear)
+            if scale_idx > 0:
+                prev_SZ = scales[scale_idx-1]
+                scale_factor = SZ / prev_SZ
+                with torch.no_grad():
+                    reg.model[-1].conv.weight.data *= scale_factor
+                    if reg.model[-1].conv.bias is not None:
+                        reg.model[-1].conv.bias.data *= scale_factor
+                print(dscolors.yellow + f"Scaled final layer weights by {scale_factor:.2f} for resolution change" + dscolors.clear)
 
             optimizerR = torch.optim.AdamW(reg.parameters(), lr=current_lr, weight_decay=1e-5)
             scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
@@ -255,7 +255,8 @@ class Warper:
             if smooth_sigma > 0:
                 # Initialize Gaussian smoother for DDF
                 # sigma is in voxels.
-                smoother = GaussianFilter(spatial_dims=3, sigma=smooth_sigma, truncated=3.0).to(device)
+                current_smooth_sigma = smooth_sigma * (0.5 ** scale_idx)
+                smoother = GaussianFilter(spatial_dims=3, sigma=current_smooth_sigma, truncated=3.0).to(device)
 
             for epoch in range(current_max_epochs):
                 optimizerR.zero_grad()
@@ -310,8 +311,8 @@ class Warper:
                 # and avoid extreme compression/expansion
                 jac_min_bound = 0.1
                 jac_max_bound = 3.0
-                range_penalty = torch.sum(torch.relu(jac_min_bound - jac_det_for_penalty)) + \
-                                torch.sum(torch.relu(jac_det_for_penalty - jac_max_bound))
+                range_penalty = torch.mean(torch.relu(jac_min_bound - jac_det_for_penalty)) + \
+                                torch.mean(torch.relu(jac_det_for_penalty - jac_max_bound))
                 
                 folding_penalty = range_penalty * poly_weight
                 
@@ -506,7 +507,7 @@ class Warper:
         # Apply the warp
         print(dscolors.green + "applying warp" + dscolors.clear)
         image_movedo = apply_warp(
-            self.ddf[None,], self.moving[None,], self.target[None,]
+            self.ddf[None,], self.moving[None,], self.target[None,], interp_mode="bilinear"
         )
         print(dscolors.green + "saving warped output: " + dscolors.clear + output_file)
         # write_nifti(image_movedo[0, 0], output_file, affine=self.target.affine)

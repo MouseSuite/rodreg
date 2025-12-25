@@ -147,7 +147,7 @@ def run_rodreg(
     inv_transform = final_transform.GetInverse()
     sitk.WriteTransform(inv_transform, inv_cent_transform_file)
 
-    moved_image = sitk.Resample(moving_image, fixed_image, final_transform)
+    moved_image = sitk.Resample(moving_image, fixed_image, final_transform, sitk.sitkLinear)
     sitk.WriteImage(moved_image, centered_atlas)
 
     moving_image = sitk.ReadImage(atlas_label, sitk.sitkUInt16)
@@ -209,8 +209,8 @@ def run_rodreg(
         jacobian_determinant_file=jac_det_file,
         inv_jacobian_determinant_file=None,
         device=device,
-        poly_weight=0.1, # Weak Jacobian constraint to avoid suppressing deformation
-        smooth_sigma=0.7, # Explicit smoothing (similar to ANTs total_sigma), was 1.0
+        poly_weight=1600, # Weak Jacobian constraint to avoid suppressing deformation
+        smooth_sigma=5, # Explicit smoothing (similar to ANTs total_sigma), was 1.0
     )
 
     disp_field, meta = LoadImage(image_only=False)(nonlin_reg_map_file)
@@ -254,21 +254,21 @@ def run_rodreg(
 
     cent_transform = sitk.ReadTransform(cent_transform_file)
     atlas = sitk.ReadImage(atlas_brain, sitk.sitkFloat32)
-    moved_image = sitk.Resample(atlas, fixed_image, cent_transform)
+    moved_image = sitk.Resample(atlas, fixed_image, cent_transform, sitk.sitkLinear)
     sitk.WriteImage(moved_image, centered_atlas)
 
-    applydeformation(centered_atlas, composed_ddf_file, full_deformed_atlas)
+    applydeformation(centered_atlas, composed_ddf_file, full_deformed_atlas, order=1)
     # compute jacobian of composed field (edge-zeroing handled inside jacobian)
     jacobian(composed_ddf_file, jacobian_full_det_file)
 
     # Invert deformations and apply centering
     invertdeformationfield(composed_ddf_file, inv_composed_ddf_file)
-    applydeformation(inputT2, inv_composed_ddf_file, full_deformed_subject)
+    applydeformation(inputT2, inv_composed_ddf_file, full_deformed_subject, order=1)
 
     moving_image = sitk.ReadImage(full_deformed_subject, sitk.sitkFloat32)
     fixed_image = sitk.ReadImage(atlas_brain, sitk.sitkFloat32)
     inv_cent_transform = sitk.ReadTransform(inv_cent_transform_file)
-    moved_image = sitk.Resample(moving_image, fixed_image, inv_cent_transform)
+    moved_image = sitk.Resample(moving_image, fixed_image, inv_cent_transform, sitk.sitkLinear)
     sitk.WriteImage(moved_image, subject_deformed2_atlas)
 
     # Calculate jacobian of the inverse composed deformation field
@@ -279,7 +279,7 @@ def run_rodreg(
         moving_image = sitk.ReadImage(inv_jacobian_full_det_file, sitk.sitkFloat32)
         fixed_image = sitk.ReadImage(atlas_brain, sitk.sitkFloat32)
         inv_cent_transform = sitk.ReadTransform(inv_cent_transform_file)
-        moved_image = sitk.Resample(moving_image, fixed_image, inv_cent_transform)
+        moved_image = sitk.Resample(moving_image, fixed_image, inv_cent_transform, sitk.sitkLinear)
         sitk.WriteImage(moved_image, inverse_jacobian_file)
     
     log_message(f"Post-processing finished in {time.time() - start_step:.2f} seconds", log_file)
