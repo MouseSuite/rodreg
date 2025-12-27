@@ -52,36 +52,4 @@ run_rodreg(
 print("Registration completed successfully!")
 
 
-# %%
-import matplotlib.pyplot as plt
-import nibabel as nib
-import numpy as np
-
-def show_slices(slices):
-    """ Function to display row of image slices """
-    fig, axes = plt.subplots(1, len(slices), figsize=(15, 5))
-    for i, slice in enumerate(slices):
-        axes[i].imshow(slice.T, cmap="gray", origin="lower")
-        axes[i].axis('off')
-    plt.show()
-
-if os.path.exists(output_warped):
-    # Load images
-    img_subj = nib.load(subject_file).get_fdata()
-    img_atlas = nib.load(atlas_prefix + ".brain.nii.gz").get_fdata()
-    img_warped = nib.load(output_warped).get_fdata()
-
-    # Pick a middle slice
-    slice_idx = img_subj.shape[2] // 2
-    
-    slice_subj = img_subj[:, :, slice_idx]
-    slice_atlas = img_atlas[:, :, slice_idx]
-    slice_warped = img_warped[:, :, slice_idx]
-
-    print("Displaying middle axial slices:")
-    print("Left: Subject, Middle: Atlas, Right: Warped Subject")
-    show_slices([slice_subj, slice_atlas, slice_warped])
-else:
-    print("Output file not found. Registration might have failed.")
-
 
